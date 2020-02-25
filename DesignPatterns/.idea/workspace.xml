@@ -2,17 +2,97 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="2e9e4e86-432f-4b7d-b7c7-6c97caafa1f3" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/PrototypePattern/DeepClone/Dolly.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/PrototypePattern/DeepClone/Identity.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/PrototypePattern/DeepClone/Sheep.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/PrototypePattern/ShallowClone/Client.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/PrototypePattern/ShallowClone/ConcretePrototypeA.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/PrototypePattern/ShallowClone/Prototype.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/SingletonPattern/RegisterSingleton/ContainerSingleton.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/test/java/com/loveoyh/PrototypePattern/DeepClone/DollyTest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/test/java/com/loveoyh/PrototypePattern/ShallowClone/PrototypeTest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/test/java/com/loveoyh/SingletonPattern/RegisterSingleton/ContainerSingletonTest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/ProxyPattern/CGLibProxy/CGLibProxy.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/ProxyPattern/CGLibProxy/Customer.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/ProxyPattern/CustomProxy/ClassLoader.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/ProxyPattern/CustomProxy/Customer.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/ProxyPattern/CustomProxy/DynamicProxy.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/ProxyPattern/CustomProxy/InvocationHandler.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/ProxyPattern/CustomProxy/Person.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/ProxyPattern/CustomProxy/Proxy.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/ProxyPattern/DynamicProxy/JDKProxy.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/ProxyPattern/DynamicProxy/Person.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/ProxyPattern/DynamicProxy/Son.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/ProxyPattern/StaticProxy/Father.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/ProxyPattern/StaticProxy/Person.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/ProxyPattern/StaticProxy/Son.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/ProxyPattern/dbroute/IOrderService.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/ProxyPattern/dbroute/Order.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/ProxyPattern/dbroute/OrderDao.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/ProxyPattern/dbroute/OrderService.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/ProxyPattern/dbroute/db/DynamicDataSourceEntity.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/ProxyPattern/dbroute/proxy/OrderServiceDynamicProxy.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/ProxyPattern/dbroute/proxy/OrderServiceSaticProxy.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/test/java/com/loveoyh/ProxyPattern/CGLibProxy/CGLibProxyTest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/test/java/com/loveoyh/ProxyPattern/CustomProxy/CustomProxyTest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/test/java/com/loveoyh/ProxyPattern/DynamicProxy/DynamicProxyTest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/test/java/com/loveoyh/ProxyPattern/StaticProxy/StaticProxyTest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/test/java/com/loveoyh/ProxyPattern/dbroute/DBRouteDynamicProxyTest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/test/java/com/loveoyh/ProxyPattern/dbroute/DBRouteStaticProxyTest.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/PrototypePattern/DeepClone/Dolly.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/PrototypePattern/DeepClone/Dolly.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/PrototypePattern/DeepClone/Identity.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/PrototypePattern/DeepClone/Identity.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/PrototypePattern/DeepClone/Sheep.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/PrototypePattern/DeepClone/Sheep.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/PrototypePattern/ShallowClone/Client.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/PrototypePattern/ShallowClone/Client.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/PrototypePattern/ShallowClone/ConcretePrototypeA.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/PrototypePattern/ShallowClone/ConcretePrototypeA.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/PrototypePattern/ShallowClone/Prototype.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/PrototypePattern/ShallowClone/Prototype.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/SingletonPattern/HungrySingleton/HungrySingleton.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/SingletonPattern/HungrySingleton/HungrySingleton.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/SingletonPattern/LazySingleton/LazyDoubleCheckSingleton.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/SingletonPattern/LazySingleton/LazyDoubleCheckSingleton.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/SingletonPattern/LazySingleton/LazyInnerClassSingleton$1.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/SingletonPattern/LazySingleton/LazyInnerClassSingleton$1.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/SingletonPattern/LazySingleton/LazyInnerClassSingleton$LazyHolder.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/SingletonPattern/LazySingleton/LazyInnerClassSingleton$LazyHolder.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/SingletonPattern/LazySingleton/LazyInnerClassSingleton.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/SingletonPattern/LazySingleton/LazyInnerClassSingleton.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/SingletonPattern/LazySingleton/LazySingleton.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/SingletonPattern/LazySingleton/LazySingleton.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/SingletonPattern/RegisterSingleton/ContainerSingleton.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/SingletonPattern/RegisterSingleton/ContainerSingleton.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/SingletonPattern/RegisterSingleton/EnumSingleton.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/SingletonPattern/RegisterSingleton/EnumSingleton.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/SingletonPattern/SerializableSingleton/SerializableSingleton.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/SingletonPattern/SerializableSingleton/SerializableSingleton.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/SingletonPattern/ThreadLocalSingleton/ThreadLocalSingleton$1.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/SingletonPattern/ThreadLocalSingleton/ThreadLocalSingleton$1.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/SingletonPattern/ThreadLocalSingleton/ThreadLocalSingleton.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/SingletonPattern/ThreadLocalSingleton/ThreadLocalSingleton.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/AbstractFactoryPattern/factory/AbstractFactory.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/AbstractFactoryPattern/factory/AbstractFactory.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/AbstractFactoryPattern/factory/DellFactory/DellKeyboardFactory.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/AbstractFactoryPattern/factory/DellFactory/DellKeyboardFactory.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/AbstractFactoryPattern/factory/DellFactory/DellMouseFactory.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/AbstractFactoryPattern/factory/DellFactory/DellMouseFactory.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/AbstractFactoryPattern/factory/HPFactory/HPKeyboardFactory.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/AbstractFactoryPattern/factory/HPFactory/HPKeyboardFactory.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/AbstractFactoryPattern/factory/HPFactory/HPMouseFactory.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/AbstractFactoryPattern/factory/HPFactory/HPMouseFactory.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/AbstractFactoryPattern/factory/defaultFactory/DefaultKeyboardFactory.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/AbstractFactoryPattern/factory/defaultFactory/DefaultKeyboardFactory.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/AbstractFactoryPattern/factory/defaultFactory/DefaultMouseFactory.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/AbstractFactoryPattern/factory/defaultFactory/DefaultMouseFactory.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/AbstractFactoryPattern/product/Default/DefaultKeyboard.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/AbstractFactoryPattern/product/Default/DefaultKeyboard.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/AbstractFactoryPattern/product/Default/DefaultMouse.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/AbstractFactoryPattern/product/Default/DefaultMouse.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/AbstractFactoryPattern/product/Default/DefaultProductFactory.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/AbstractFactoryPattern/product/Default/DefaultProductFactory.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/AbstractFactoryPattern/product/Dell/DellKeyboard.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/AbstractFactoryPattern/product/Dell/DellKeyboard.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/AbstractFactoryPattern/product/Dell/DellMouse.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/AbstractFactoryPattern/product/Dell/DellMouse.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/AbstractFactoryPattern/product/Dell/DellProductFactory.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/AbstractFactoryPattern/product/Dell/DellProductFactory.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/AbstractFactoryPattern/product/HP/HPKeyboard.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/AbstractFactoryPattern/product/HP/HPKeyboard.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/AbstractFactoryPattern/product/HP/HPMouse.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/AbstractFactoryPattern/product/HP/HPMouse.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/AbstractFactoryPattern/product/HP/HPProductFactory.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/AbstractFactoryPattern/product/HP/HPProductFactory.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/AbstractFactoryPattern/product/Keyboard.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/AbstractFactoryPattern/product/Keyboard.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/AbstractFactoryPattern/product/Mouse.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/AbstractFactoryPattern/product/Mouse.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/FactoryMethodPattern/entity/ICourse.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/FactoryMethodPattern/entity/ICourse.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/FactoryMethodPattern/entity/JavaCourse.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/FactoryMethodPattern/entity/JavaCourse.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/FactoryMethodPattern/entity/PythonCourse.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/FactoryMethodPattern/entity/PythonCourse.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/FactoryMethodPattern/factory/CourseFactory.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/FactoryMethodPattern/factory/CourseFactory.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/FactoryMethodPattern/factory/JavaCourseFactory.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/FactoryMethodPattern/factory/JavaCourseFactory.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/FactoryMethodPattern/factory/PythonCourseFactory.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/FactoryMethodPattern/factory/PythonCourseFactory.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/SimpleFactoryPattern/entity/ICourse.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/SimpleFactoryPattern/entity/ICourse.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/SimpleFactoryPattern/entity/JavaCourse.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/SimpleFactoryPattern/entity/JavaCourse.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/SimpleFactoryPattern/entity/PythonCourse.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/SimpleFactoryPattern/entity/PythonCourse.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/SimpleFactoryPattern/factory/DefualtCourseFactory.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/factorypattern/SimpleFactoryPattern/factory/DefualtCourseFactory.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/test-classes/META-INF/DesignPatterns.kotlin_module" beforeDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/test-classes/com/loveoyh/FactoryPattern/AbstractFactoryPattern/AbstractFactoryPatternTest.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/test-classes/com/loveoyh/FactoryPattern/AbstractFactoryPattern/AbstractFactoryPatternTest.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/test-classes/com/loveoyh/FactoryPattern/FactoryMethodPattern/FactoryMethodPatternTest.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/test-classes/com/loveoyh/FactoryPattern/FactoryMethodPattern/FactoryMethodPatternTest.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/test-classes/com/loveoyh/FactoryPattern/SimpleFactoryPattern/SimpleFactoryPatternTest.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/test-classes/com/loveoyh/FactoryPattern/SimpleFactoryPattern/SimpleFactoryPatternTest.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/test-classes/com/loveoyh/PrototypePattern/DeepClone/DollyTest.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/test-classes/com/loveoyh/PrototypePattern/DeepClone/DollyTest.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/test-classes/com/loveoyh/PrototypePattern/ShallowClone/PrototypeTest.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/test-classes/com/loveoyh/PrototypePattern/ShallowClone/PrototypeTest.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/test-classes/com/loveoyh/SingletonPattern/HungrySingleton/HungrySingletonTest.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/test-classes/com/loveoyh/SingletonPattern/HungrySingleton/HungrySingletonTest.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/test-classes/com/loveoyh/SingletonPattern/LazySingleton/ExcutorThead.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/test-classes/com/loveoyh/SingletonPattern/LazySingleton/ExcutorThead.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/test-classes/com/loveoyh/SingletonPattern/LazySingleton/LazyDoubleCheckSingletonTest.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/test-classes/com/loveoyh/SingletonPattern/LazySingleton/LazyDoubleCheckSingletonTest.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/test-classes/com/loveoyh/SingletonPattern/LazySingleton/LazyInnerClassSingletonTest.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/test-classes/com/loveoyh/SingletonPattern/LazySingleton/LazyInnerClassSingletonTest.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/test-classes/com/loveoyh/SingletonPattern/LazySingleton/LazySingletonTest.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/test-classes/com/loveoyh/SingletonPattern/LazySingleton/LazySingletonTest.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/test-classes/com/loveoyh/SingletonPattern/RegisterSingleton/ContainerSingletonTest.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/test-classes/com/loveoyh/SingletonPattern/RegisterSingleton/ContainerSingletonTest.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/test-classes/com/loveoyh/SingletonPattern/RegisterSingleton/EnumSingletonTest.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/test-classes/com/loveoyh/SingletonPattern/RegisterSingleton/EnumSingletonTest.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/test-classes/com/loveoyh/SingletonPattern/SerializableSingleton/SerializableSingletonTest.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/test-classes/com/loveoyh/SingletonPattern/SerializableSingleton/SerializableSingletonTest.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/test-classes/com/loveoyh/SingletonPattern/ThreadLocalSingleton/ThreadLocalSingletonTest$1.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/test-classes/com/loveoyh/SingletonPattern/ThreadLocalSingleton/ThreadLocalSingletonTest$1.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/test-classes/com/loveoyh/SingletonPattern/ThreadLocalSingleton/ThreadLocalSingletonTest$2.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/test-classes/com/loveoyh/SingletonPattern/ThreadLocalSingleton/ThreadLocalSingletonTest$2.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/target/test-classes/com/loveoyh/SingletonPattern/ThreadLocalSingleton/ThreadLocalSingletonTest.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/test-classes/com/loveoyh/SingletonPattern/ThreadLocalSingleton/ThreadLocalSingletonTest.class" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../README.md" beforeDir="false" afterPath="$PROJECT_DIR$/../README.md" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -48,12 +128,12 @@
     <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
     <property name="WebServerToolWindowFactoryState" value="false" />
     <property name="aspect.path.notification.shown" value="true" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/src/main/java/com/loveoyh/ProxyPattern/CustomProxy" />
     <property name="nodejs_package_manager_path" value="npm" />
     <property name="project.structure.last.edited" value="Modules" />
     <property name="project.structure.proportion" value="0.15" />
     <property name="project.structure.side.proportion" value="0.2" />
-    <property name="settings.editor.selected.configurable" value="preferences.keymap" />
+    <property name="settings.editor.selected.configurable" value="fileTemplates" />
   </component>
   <component name="RecentsManager">
     <key name="CreateClassDialog.RecentsKey">
@@ -65,16 +145,18 @@
       <recent name="com.loveoyh.SingletonPattern.LazySingleton" />
     </key>
     <key name="CopyClassDialog.RECENTS_KEY">
+      <recent name="com.loveoyh.ProxyPattern.CGLibProxy" />
+      <recent name="com.loveoyh.ProxyPattern.CustomProxy" />
       <recent name="com.loveoyh.SingletonPattern.RegisterSingleton" />
       <recent name="com.loveoyh.SingletonPattern.LazySingleton" />
       <recent name="HungrySingleton" />
-      <recent name="com.loveoyh.factorypattern.AbstractFactoryPattern.product.Dell" />
     </key>
     <key name="CopyFile.RECENT_KEYS">
+      <recent name="C:\Users\HP\Desktop\JavaArchitects\DesignPatterns\src\main\java\com\loveoyh\ProxyPattern\CustomProxy" />
+      <recent name="C:\Users\HP\Desktop\Java架构师\DesignPatterns\src\main\java\com\loveoyh\ProxyPattern\dbroute" />
       <recent name="C:\Users\HP\Desktop\Java架构师\DesignPatterns\src\test\java" />
       <recent name="C:\Users\HP\Desktop\DesignPatterns\src\main\java\com\loveoyh\factorypattern\AbstractFactoryPattern\factory\DellFactory" />
       <recent name="C:\Users\HP\Desktop\DesignPatterns\src\main\java\com\loveoyh\factorypattern\AbstractFactoryPattern\factory\HPFactory" />
-      <recent name="C:\Users\HP\Desktop\DesignPatterns\src\main\java\com\loveoyh\factorypattern\FactoryMethodPattern" />
     </key>
   </component>
   <component name="RunDashboard">
@@ -89,13 +171,13 @@
       </list>
     </option>
   </component>
-  <component name="RunManager" selected="Application.DollyTest">
-    <configuration name="ContainerSingletonTest" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
-      <option name="MAIN_CLASS_NAME" value="com.loveoyh.SingletonPattern.RegisterSingleton.ContainerSingletonTest" />
+  <component name="RunManager" selected="Application.CGLibProxyTest">
+    <configuration name="CGLibProxyTest" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
+      <option name="MAIN_CLASS_NAME" value="com.loveoyh.ProxyPattern.CGLibProxy.CGLibProxyTest" />
       <module name="DesignPatterns" />
       <extension name="coverage">
         <pattern>
-          <option name="PATTERN" value="com.loveoyh.SingletonPattern.RegisterSingleton.*" />
+          <option name="PATTERN" value="com.loveoyh.ProxyPattern.CGLibProxy.*" />
           <option name="ENABLED" value="true" />
         </pattern>
       </extension>
@@ -103,12 +185,12 @@
         <option name="Make" enabled="true" />
       </method>
     </configuration>
-    <configuration name="DollyTest" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
-      <option name="MAIN_CLASS_NAME" value="com.loveoyh.PrototypePattern.DeepClone.DollyTest" />
+    <configuration name="CustomProxyTest" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
+      <option name="MAIN_CLASS_NAME" value="com.loveoyh.ProxyPattern.CustomProxy.CustomProxyTest" />
       <module name="DesignPatterns" />
       <extension name="coverage">
         <pattern>
-          <option name="PATTERN" value="com.loveoyh.PrototypePattern.DeepClone.*" />
+          <option name="PATTERN" value="com.loveoyh.ProxyPattern.CustomProxy.*" />
           <option name="ENABLED" value="true" />
         </pattern>
       </extension>
@@ -116,12 +198,12 @@
         <option name="Make" enabled="true" />
       </method>
     </configuration>
-    <configuration name="EnumSingletonTest" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
-      <option name="MAIN_CLASS_NAME" value="com.loveoyh.SingletonPattern.RegisterSingleton.EnumSingletonTest" />
+    <configuration name="DBRouteDynamicProxyTest" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
+      <option name="MAIN_CLASS_NAME" value="com.loveoyh.ProxyPattern.dbroute.DBRouteDynamicProxyTest" />
       <module name="DesignPatterns" />
       <extension name="coverage">
         <pattern>
-          <option name="PATTERN" value="com.loveoyh.SingletonPattern.RegisterSingleton.*" />
+          <option name="PATTERN" value="com.loveoyh.ProxyPattern.dbroute.*" />
           <option name="ENABLED" value="true" />
         </pattern>
       </extension>
@@ -129,12 +211,12 @@
         <option name="Make" enabled="true" />
       </method>
     </configuration>
-    <configuration name="PrototypeTest" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
-      <option name="MAIN_CLASS_NAME" value="com.loveoyh.PrototypePattern.ShallowClone.PrototypeTest" />
+    <configuration name="DynamicProxyTest" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
+      <option name="MAIN_CLASS_NAME" value="com.loveoyh.ProxyPattern.DynamicProxy.DynamicProxyTest" />
       <module name="DesignPatterns" />
       <extension name="coverage">
         <pattern>
-          <option name="PATTERN" value="com.loveoyh.PrototypePattern.ShallowClone.*" />
+          <option name="PATTERN" value="com.loveoyh.ProxyPattern.DynamicProxy.*" />
           <option name="ENABLED" value="true" />
         </pattern>
       </extension>
@@ -142,12 +224,12 @@
         <option name="Make" enabled="true" />
       </method>
     </configuration>
-    <configuration name="ThreadLocalSingletonTest" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
-      <option name="MAIN_CLASS_NAME" value="com.loveoyh.SingletonPattern.ThreadLocalSingleton.ThreadLocalSingletonTest" />
+    <configuration name="StaticProxyTest" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
+      <option name="MAIN_CLASS_NAME" value="com.loveoyh.ProxyPattern.StaticProxy.StaticProxyTest" />
       <module name="DesignPatterns" />
       <extension name="coverage">
         <pattern>
-          <option name="PATTERN" value="com.loveoyh.SingletonPattern.ThreadLocalSingleton.*" />
+          <option name="PATTERN" value="com.loveoyh.ProxyPattern.StaticProxy.*" />
           <option name="ENABLED" value="true" />
         </pattern>
       </extension>
@@ -157,11 +239,11 @@
     </configuration>
     <recent_temporary>
       <list>
-        <item itemvalue="Application.DollyTest" />
-        <item itemvalue="Application.PrototypeTest" />
-        <item itemvalue="Application.ContainerSingletonTest" />
-        <item itemvalue="Application.ThreadLocalSingletonTest" />
-        <item itemvalue="Application.EnumSingletonTest" />
+        <item itemvalue="Application.CGLibProxyTest" />
+        <item itemvalue="Application.CustomProxyTest" />
+        <item itemvalue="Application.DynamicProxyTest" />
+        <item itemvalue="Application.DBRouteDynamicProxyTest" />
+        <item itemvalue="Application.StaticProxyTest" />
       </list>
     </recent_temporary>
   </component>
@@ -180,6 +262,9 @@
       <workItem from="1582215381646" duration="133000" />
       <workItem from="1582232831350" duration="403000" />
       <workItem from="1582428055400" duration="6462000" />
+      <workItem from="1582458424671" duration="72000" />
+      <workItem from="1582535891063" duration="17412000" />
+      <workItem from="1582579155308" duration="3774000" />
     </task>
     <servers />
   </component>
