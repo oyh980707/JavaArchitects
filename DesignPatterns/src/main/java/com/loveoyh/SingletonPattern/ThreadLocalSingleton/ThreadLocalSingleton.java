@@ -5,7 +5,7 @@ package com.loveoyh.SingletonPattern.ThreadLocalSingleton;
  * 实际上是以空间换时间来实现线程间隔离的。
  */
 public class ThreadLocalSingleton {
-    private static final ThreadLocal<ThreadLocalSingleton> threadLocalInstance = new ThreadLocal<ThreadLocalSingleton>(){
+    private static final ThreadLocal<ThreadLocalSingleton> threadLocalInstance = new ThreadLocal<ThreadLocalSingleton>() {
         @Override
         protected ThreadLocalSingleton initialValue() {
             return new ThreadLocalSingleton();
