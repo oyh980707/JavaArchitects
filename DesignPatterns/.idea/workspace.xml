@@ -2,34 +2,27 @@
 <project version="4">
   <component name="ChangeListManager">
     <list default="true" id="2e9e4e86-432f-4b7d-b7c7-6c97caafa1f3" name="Default Changelist" comment="">
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/AdapterPattern/AlternatingCurrent.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/AdapterPattern/DirectCurrent.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/AdapterPattern/PowerAdapter.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/AdapterPattern/login/Member.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/AdapterPattern/login/ResultMsg.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/AdapterPattern/login/SigninService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/AdapterPattern/login/adapter/IPassportForThird.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/AdapterPattern/login/adapter/LoginAdapter.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/AdapterPattern/login/adapter/LoginForQQAdapter.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/AdapterPattern/login/adapter/LoginForSinaAdapter.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/AdapterPattern/login/adapter/LoginForTelAdapter.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/AdapterPattern/login/adapter/LoginForTokenAdapter.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/AdapterPattern/login/adapter/LoginForWechatAdapter.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/AdapterPattern/login/adapter/PassportForThirdAdapter.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/AdapterPattern/login/extend/SigninForThirdService.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/TemplatePattern/jdbc/JdbcTemplate.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/TemplatePattern/jdbc/Member.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/TemplatePattern/jdbc/MemberDao.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/TemplatePattern/jdbc/RowMapper.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/test/java/com/loveoyh/AdapterPattern/PowerAdapterTest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/test/java/com/loveoyh/AdapterPattern/login/adapter/LoginAdapterTEst.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/test/java/com/loveoyh/AdapterPattern/login/extend/SigninServiceTest.java" afterDir="false" />
-      <change afterPath="$PROJECT_DIR$/src/test/java/com/loveoyh/TemplatePattern/jdbc/JdbpTemplateTest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/DecoratorPattern/battercake/BaseBattercake.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/DecoratorPattern/battercake/Battercake.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/DecoratorPattern/battercake/BattercakeDecorator.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/DecoratorPattern/battercake/EggDecorator.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/DecoratorPattern/battercake/SausageDecorator.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/ObserverPattern/edusystem/EduSystem.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/ObserverPattern/edusystem/Question.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/ObserverPattern/edusystem/Teacher.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/ObserverPattern/events/core/Event.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/ObserverPattern/events/core/EventLisenter.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/ObserverPattern/events/mouseevent/Keybord.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/ObserverPattern/events/mouseevent/Mouse.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/ObserverPattern/events/mouseevent/MouseEventCallback.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/ObserverPattern/events/mouseevent/MouseEventType.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/ObserverPattern/guava/GuavaEvent.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/test/java/com/loveoyh/DecoratorPattern/battercake/BattercakeDecoratorTest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/test/java/com/loveoyh/ObserverPattern/edusystem/EduSystemTest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/test/java/com/loveoyh/ObserverPattern/events/MouseEventTest.java" afterDir="false" />
+      <change afterPath="$PROJECT_DIR$/src/test/java/com/loveoyh/ObserverPattern/guava/GuavaEventTest.java" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/.idea/workspace.xml" beforeDir="false" afterPath="$PROJECT_DIR$/.idea/workspace.xml" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/loveoyh/DelegatePattern/Boss.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/DelegatePattern/Boss.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/src/main/java/com/loveoyh/SingletonPattern/ThreadLocalSingleton/ThreadLocalSingleton.java" beforeDir="false" afterPath="$PROJECT_DIR$/src/main/java/com/loveoyh/SingletonPattern/ThreadLocalSingleton/ThreadLocalSingleton.java" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/DelegatePattern/Boss.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/DelegatePattern/Boss.class" afterDir="false" />
-      <change beforePath="$PROJECT_DIR$/target/classes/com/loveoyh/DelegatePattern/mvc/DispatcherServlet.class" beforeDir="false" afterPath="$PROJECT_DIR$/target/classes/com/loveoyh/DelegatePattern/mvc/DispatcherServlet.class" afterDir="false" />
+      <change beforePath="$PROJECT_DIR$/pom.xml" beforeDir="false" afterPath="$PROJECT_DIR$/pom.xml" afterDir="false" />
       <change beforePath="$PROJECT_DIR$/../README.md" beforeDir="false" afterPath="$PROJECT_DIR$/../README.md" afterDir="false" />
     </list>
     <option name="EXCLUDED_CONVERTED_TO_IGNORED" value="true" />
@@ -86,7 +79,7 @@
     <property name="SHARE_PROJECT_CONFIGURATION_FILES" value="true" />
     <property name="WebServerToolWindowFactoryState" value="false" />
     <property name="aspect.path.notification.shown" value="true" />
-    <property name="last_opened_file_path" value="$PROJECT_DIR$/src/main/java/com/loveoyh/ProxyPattern/CustomProxy" />
+    <property name="last_opened_file_path" value="$PROJECT_DIR$/src/main/java/com/loveoyh/ObserverPattern" />
     <property name="nodejs_package_manager_path" value="npm" />
     <property name="project.structure.last.edited" value="Modules" />
     <property name="project.structure.proportion" value="0.15" />
@@ -95,10 +88,12 @@
   </component>
   <component name="RecentsManager">
     <key name="CreateClassDialog.RecentsKey">
+      <recent name="com.loveoyh.ObserverPattern.edusystem" />
       <recent name="com.loveoyh.DelegatePattern.pay" />
       <recent name="com.loveoyh.PrototypePattern.DeepClone" />
     </key>
     <key name="MoveClassesOrPackagesDialog.RECENTS_KEY">
+      <recent name="com.loveoyh.ObserverPattern.events" />
       <recent name="com.loveoyh.AdapterPattern.login.extend" />
       <recent name="com.loveoyh.PrototypePattern.ShallowClone" />
       <recent name="com.loveoyh.SingletonPattern.SerializableSingleton" />
@@ -112,11 +107,11 @@
       <recent name="HungrySingleton" />
     </key>
     <key name="CopyFile.RECENT_KEYS">
+      <recent name="C:\Users\HP\Desktop\JavaArchitects\DesignPatterns\src\main\java\com\loveoyh\ObserverPattern" />
+      <recent name="C:\Users\HP\Desktop\JavaArchitects\DesignPatterns\src\test\java\com\loveoyh" />
       <recent name="C:\Users\HP\Desktop\JavaArchitects\DesignPatterns\src\main\java\com\loveoyh\ProxyPattern\CustomProxy" />
       <recent name="C:\Users\HP\Desktop\Java架构师\DesignPatterns\src\main\java\com\loveoyh\ProxyPattern\dbroute" />
       <recent name="C:\Users\HP\Desktop\Java架构师\DesignPatterns\src\test\java" />
-      <recent name="C:\Users\HP\Desktop\DesignPatterns\src\main\java\com\loveoyh\factorypattern\AbstractFactoryPattern\factory\DellFactory" />
-      <recent name="C:\Users\HP\Desktop\DesignPatterns\src\main\java\com\loveoyh\factorypattern\AbstractFactoryPattern\factory\HPFactory" />
     </key>
   </component>
   <component name="RunDashboard">
@@ -131,13 +126,39 @@
       </list>
     </option>
   </component>
-  <component name="RunManager" selected="Application.LoginAdapterTest">
-    <configuration name="JdbpTemplateTest" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
-      <option name="MAIN_CLASS_NAME" value="com.loveoyh.TemplatePattern.jdbc.JdbpTemplateTest" />
+  <component name="RunManager" selected="Application.GuavaEventTest">
+    <configuration name="BattercakeDecoratorTest" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
+      <option name="MAIN_CLASS_NAME" value="com.loveoyh.DecoratorPattern.battercake.BattercakeDecoratorTest" />
       <module name="DesignPatterns" />
       <extension name="coverage">
         <pattern>
-          <option name="PATTERN" value="com.loveoyh.TemplatePattern.jdbc.*" />
+          <option name="PATTERN" value="com.loveoyh.DecoratorPattern.battercake.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="EduSystemTest" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
+      <option name="MAIN_CLASS_NAME" value="com.loveoyh.ObserverPattern.edusystem.EduSystemTest" />
+      <module name="DesignPatterns" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="com.loveoyh.ObserverPattern.edusystem.*" />
+          <option name="ENABLED" value="true" />
+        </pattern>
+      </extension>
+      <method v="2">
+        <option name="Make" enabled="true" />
+      </method>
+    </configuration>
+    <configuration name="GuavaEventTest" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
+      <option name="MAIN_CLASS_NAME" value="com.loveoyh.ObserverPattern.guava.GuavaEventTest" />
+      <module name="DesignPatterns" />
+      <extension name="coverage">
+        <pattern>
+          <option name="PATTERN" value="com.loveoyh.ObserverPattern.guava.*" />
           <option name="ENABLED" value="true" />
         </pattern>
       </extension>
@@ -158,38 +179,12 @@
         <option name="Make" enabled="true" />
       </method>
     </configuration>
-    <configuration name="PaymentTest" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
-      <option name="MAIN_CLASS_NAME" value="com.loveoyh.DelegatePattern.pay.PaymentTest" />
+    <configuration name="MouseEventTest" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
+      <option name="MAIN_CLASS_NAME" value="com.loveoyh.ObserverPattern.events.MouseEventTest" />
       <module name="DesignPatterns" />
       <extension name="coverage">
         <pattern>
-          <option name="PATTERN" value="com.loveoyh.DelegatePattern.pay.*" />
-          <option name="ENABLED" value="true" />
-        </pattern>
-      </extension>
-      <method v="2">
-        <option name="Make" enabled="true" />
-      </method>
-    </configuration>
-    <configuration name="PowerAdapterTest" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
-      <option name="MAIN_CLASS_NAME" value="com.loveoyh.AdapterPattern.PowerAdapterTest" />
-      <module name="DesignPatterns" />
-      <extension name="coverage">
-        <pattern>
-          <option name="PATTERN" value="com.loveoyh.AdapterPattern.*" />
-          <option name="ENABLED" value="true" />
-        </pattern>
-      </extension>
-      <method v="2">
-        <option name="Make" enabled="true" />
-      </method>
-    </configuration>
-    <configuration name="SigninServiceTest" type="Application" factoryName="Application" temporary="true" nameIsGenerated="true">
-      <option name="MAIN_CLASS_NAME" value="com.loveoyh.AdapterPattern.login.extend.SigninServiceTest" />
-      <module name="DesignPatterns" />
-      <extension name="coverage">
-        <pattern>
-          <option name="PATTERN" value="com.loveoyh.AdapterPattern.login.extend.*" />
+          <option name="PATTERN" value="com.loveoyh.ObserverPattern.events.*" />
           <option name="ENABLED" value="true" />
         </pattern>
       </extension>
@@ -199,11 +194,11 @@
     </configuration>
     <recent_temporary>
       <list>
+        <item itemvalue="Application.GuavaEventTest" />
+        <item itemvalue="Application.MouseEventTest" />
+        <item itemvalue="Application.EduSystemTest" />
+        <item itemvalue="Application.BattercakeDecoratorTest" />
         <item itemvalue="Application.LoginAdapterTest" />
-        <item itemvalue="Application.SigninServiceTest" />
-        <item itemvalue="Application.PowerAdapterTest" />
-        <item itemvalue="Application.JdbpTemplateTest" />
-        <item itemvalue="Application.PaymentTest" />
       </list>
     </recent_temporary>
   </component>
@@ -228,6 +223,8 @@
       <workItem from="1582717456599" duration="5183000" />
       <workItem from="1582723139636" duration="4599000" />
       <workItem from="1582813400741" duration="12762000" />
+      <workItem from="1582980094890" duration="9053000" />
+      <workItem from="1583032230114" duration="1571000" />
     </task>
     <servers />
   </component>
