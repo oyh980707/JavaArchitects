@@ -1,9 +1,6 @@
 package com.loveoyh.springframework.web.servlet;
 
-import com.loveoyh.springframework.annotation.Autowired;
-import com.loveoyh.springframework.annotation.Controller;
-import com.loveoyh.springframework.annotation.RequestMapping;
-import com.loveoyh.springframework.annotation.Service;
+import com.loveoyh.springframework.annotation.*;
 
 import javax.servlet.ServletConfig;
 import javax.servlet.ServletException;
@@ -13,6 +10,7 @@ import javax.servlet.http.HttpServletResponse;
 import java.io.File;
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.annotation.Annotation;
 import java.lang.reflect.Field;
 import java.lang.reflect.Method;
 import java.net.URL;
@@ -65,10 +63,42 @@ public class DispatcherServlet extends HttpServlet {
 		Method method = this.HandlerMapping.get(url);
 		//第一个参数，方法所在的实例；第二个参数调用时所需要的实参
 		Map<String, String[]> params = req.getParameterMap();
-		//简化
+		//获取方法的形参列表
+		Class<?>[] parameterTypes = method.getParameterTypes();
+		//保存请求的url参数列表
+		Map<String, String[]> parameterMap = req.getParameterMap();
+		//保存赋值参数的位置
+		Object[] paramValues = new Object[parameterTypes.length];
+		//根据参数位置动态赋值
+		for(int i=0;i<parameterTypes.length;i++){
+			Class parameterType = parameterTypes[i];
+			if(parameterType == HttpServletRequest.class){
+				paramValues[i] = req;
+				continue;
+			}else if(parameterType == HttpServletResponse.class){
+				paramValues[i] = res;
+				continue;
+			}else if(parameterType == String.class){
+				//提取方法中加了注解的参数
+				Annotation[][] pa = method.getParameterAnnotations();
+				for(int j=0;j<pa.length;j++){
+					for(Annotation a : pa[j]){
+						if(a instanceof RequestParam) {
+							String paramName = ((RequestParam) a).value();
+							if (!"".equals(paramName.trim())) {
+								String value = Arrays.toString(parameterMap.get(paramName))
+										.replaceAll("\\[|\\]", "")
+										.replaceAll("\\s", ",");
+								paramValues[i] = value;
+							}
+						}
+					}
+				}
+			}
+		}
+		//简化调用
 		String beanName = toLowerFirstCase(method.getDeclaringClass().getSimpleName());
-		method.invoke(ioc.get(beanName),new Object[]{req,res,params.get("name")[0]});
-		System.out.println("END.");
+		method.invoke(ioc.get(beanName), paramValues);
 	}
 	
 	/**
