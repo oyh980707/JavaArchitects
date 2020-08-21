@@ -198,7 +198,7 @@ TreeMap存储K-V键值对，通过红黑树（R-B tree）实现；
 
 ### TreeMap的put方法
 
-JDK 8的TreeMap的get的实现步骤
+JDK 8的TreeMap的put的实现步骤
 
 1. 判断红黑树是否存在，不存在即创建，返回null
 2. 遍历红黑树，与传入的key进行比较，若找到相同的key则替换值
@@ -402,3 +402,59 @@ private void rotateRight(Entry<K,V> p) {
 右旋图示：
 
 ![](./images/右旋.png)
+
+### TreeMap的get方法
+
+JDK 8的TreeMap的get的实现步骤
+
+1. 判断有无comparator，没有则使用传入key的comparator
+2. 通过二分查找，如果compareTo比较结果为0则找到直接返回，否则判断正负来选择左右子树继续遍历，遍历结束如果没有对应结果则返回null
+
+```java
+
+public V get(Object key) {
+    Entry<K,V> p = getEntry(key);
+    return (p==null ? null : p.value);
+}
+
+final Entry<K,V> getEntry(Object key) {
+    // Offload comparator-based version for sake of performance
+    if (comparator != null)
+        return getEntryUsingComparator(key);
+    if (key == null)
+        throw new NullPointerException();
+    @SuppressWarnings("unchecked")
+    Comparable<? super K> k = (Comparable<? super K>) key;
+    Entry<K,V> p = root;
+    while (p != null) {
+        int cmp = k.compareTo(p.key);
+        if (cmp < 0)
+            p = p.left;
+        else if (cmp > 0)
+            p = p.right;
+        else
+            return p;
+    }
+    return null;
+}
+
+final Entry<K,V> getEntryUsingComparator(Object key) {
+    @SuppressWarnings("unchecked")
+    K k = (K) key;
+    Comparator<? super K> cpr = comparator;
+    if (cpr != null) {
+        Entry<K,V> p = root;
+        while (p != null) {
+            int cmp = cpr.compare(k, p.key);
+            if (cmp < 0)
+                p = p.left;
+            else if (cmp > 0)
+                p = p.right;
+            else
+                return p;
+        }
+    }
+    return null;
+}
+```
+
