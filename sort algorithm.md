@@ -119,3 +119,117 @@ public void sort(int[] arr) {
 }
 ```
 
+
+
+## 希尔排序(Shell Sort)
+
+**基本思想：**
+
+```text
+在要排序的一组数中，根据某一增量分为若干子序列，并对子序列分别进行插入排序。然后逐渐将增量减小,并重复上述过程。直至增量为1,此时数据序列基本有序,最后进行插入排序。
+```
+
+**平均时间复杂度：**O(n1.5)
+
+代码实现：
+
+```java
+public static void sort(int[] arr){
+    int incre = arr.length;
+    while (incre > 1){
+        incre = incre / 2;
+        for(int i=0;i<incre;i++){
+            // 每次加步长
+            for(int j=i+incre;j<arr.length;j+=incre){
+                // 每次比较最靠后的两个，就会将稍大的数往后推
+                for(int k=j;k>i;k-=incre){
+                    if(arr[k]<arr[k-incre]){
+                        // swap two numbers
+                        arr[k] = arr[k] + arr[k-incre];
+                        arr[k-incre] = arr[k] - arr[k-incre];
+                        arr[k] = arr[k] - arr[k-incre];
+                    }else{
+                        break;
+                    }
+                }
+            }
+        }
+    }
+}
+```
+
+
+
+## 快速排序(Quick sort)
+
+**基本思想：（分治）**
+
+```text
+1. 先从数列中取出一个数作为key值；
+2. 将比这个数小的数全部放在它的左边，大于或等于它的数全部放在它的右边；
+3. 对左右两个小数列重复第二步，直至各区间只有1个数。
+```
+
+**平均时间复杂度：**O(N*logN) 
+
+实现代码：
+
+```java
+public static void sort(int[] arr, int left, int right){
+    if(left > right){
+        return ;
+    }
+    int i = left;
+    int j = right;
+
+    int key = arr[i];
+
+    while (i < j){
+        while (i < j && arr[j]>=key){
+            j--;
+        }
+
+        if (i < j){
+            arr[i] = arr[j];
+            i++;
+        }
+
+        while (i < j && arr[i] <= key){
+            i++;
+        }
+
+        if (i < j){
+            arr[j] = arr[i];
+            j--;
+        }
+    }
+
+    // i==j
+    arr[i] = key;
+    sort(arr, left, i-1);
+    sort(arr, i+1, right);
+}
+```
+
+
+
+## 堆排序(HeapSort)
+
+**平均时间复杂度：**O(NlogN) 
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
