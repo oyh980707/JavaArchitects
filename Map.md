@@ -458,3 +458,181 @@ final Entry<K,V> getEntryUsingComparator(Object key) {
 }
 ```
 
+### TreeMap的remove方法
+
+
+
+```java
+public V remove(Object key) {
+    // 找到该节点
+    Entry<K,V> p = getEntry(key);
+    if (p == null)
+        return null;
+
+    V oldValue = p.value;
+    // 删除该节点，并返回旧值
+    /*
+     * 1. 删除的是根节点，则直接将根节点置为null;
+     * 2. 待删除节点的左右子节点都为null，删除时将该节点置为null;
+     * 3. 待删除节点的左右子节点有一个有值，则用有值的节点替换该节点即可；
+     * 4. 待删除节点的左右子节点都不为null，则找后继，将后继的值复制到该节点中，然后删除后继
+     *   （后继：右子树中值最小的节点，或者其往上遍历第一个向左走的祖先）；
+     */
+    deleteEntry(p);
+    return oldValue;
+}
+
+/**
+ * Delete node p, and then rebalance the tree.
+ */
+private void deleteEntry(Entry<K,V> p) {
+    modCount++;
+    size--;
+
+    // If strictly internal, copy successor's element to p and then make p
+    // point to successor.
+    if (p.left != null && p.right != null) {
+        // 左右子节点都不为null，则找节点的后继替换该节点
+        // 该后继节点只能是右子树值最小的一个节点，不可能会去找祖先元素
+        Entry<K,V> s = successor(p);
+        // 将后继的key和value复制到当前节点p中，然后删除节点s(通过将节点p引用指向s)
+        p.key = s.key;
+        p.value = s.value;
+        p = s;
+    } // p has 2 children
+
+    // Start fixup at replacement node, if it exists.
+    Entry<K,V> replacement = (p.left != null ? p.left : p.right);
+
+    if (replacement != null) {
+        // Link replacement to parent
+        // 将删除节点p的子节点(replacement)指向p的父节点
+        // 若p是根节点，直接将root指向p的子节点(replacement)
+        // 若p是左节点，则将p的父节点的左节点连接到p的子节点(replacement)
+        // 若p是右节点，则将p的父节点的右节点连接到p的子节点(replacement)
+        replacement.parent = p.parent;
+        if (p.parent == null)
+            root = replacement;
+        else if (p == p.parent.left)
+            p.parent.left  = replacement;
+        else
+            p.parent.right = replacement;
+
+        // Null out links so they are OK to use by fixAfterDeletion.
+        p.left = p.right = p.parent = null;
+
+        // Fix replacement
+        if (p.color == BLACK)
+            // ???
+            fixAfterDeletion(replacement);
+    } else if (p.parent == null) { // return if we are the only node.
+        // 此处的p左右子节点都为空，且p的父节点为空，表示p为根节点，删除直接将root赋值为null
+        root = null;
+    } else { //  No children. Use self as phantom replacement and unlink.
+        if (p.color == BLACK)
+            fixAfterDeletion(p);
+
+        if (p.parent != null) {
+            if (p == p.parent.left)
+                p.parent.left = null;
+            else if (p == p.parent.right)
+                p.parent.right = null;
+            p.parent = null;
+        }
+    }
+}
+
+/**
+ * Returns the successor of the specified Entry, or null if no such.
+ */
+static <K,V> TreeMap.Entry<K,V> successor(Entry<K,V> t) {
+    if (t == null)
+        return null;
+    else if (t.right != null) {
+        // 表明节点t有右节点，通过右节点的循环遍历左节点，直到找到t的后继节点(右子树中值最小的节点)
+        Entry<K,V> p = t.right;
+        while (p.left != null)
+            p = p.left;
+        return p;
+    } else {
+        // 在deleteEntry中调用走不进，因为控制了t有左右子树才会进来，所以不用考虑此处的p可能为空
+        // 该节点没有右节点，则向上找，循环遍历知道找到一个节点是父节点的左子树为止，表明该父节点是
+        // 节点t的后继结点(比t大且最接近t值的节点)
+        // 即t的后继是其第一个向左走的祖先
+        Entry<K,V> p = t.parent;
+        Entry<K,V> ch = t;
+        while (p != null && ch == p.right) {
+            ch = p;
+            p = p.parent;
+        }
+        return p;
+    }
+}
+
+/** From CLR */
+private void fixAfterDeletion(Entry<K,V> x) {
+    while (x != root && colorOf(x) == BLACK) {
+        if (x == leftOf(parentOf(x))) {
+            Entry<K,V> sib = rightOf(parentOf(x));
+
+            if (colorOf(sib) == RED) {
+                setColor(sib, BLACK);
+                setColor(parentOf(x), RED);
+                rotateLeft(parentOf(x));
+                sib = rightOf(parentOf(x));
+            }
+
+            if (colorOf(leftOf(sib))  == BLACK &&
+                colorOf(rightOf(sib)) == BLACK) {
+                setColor(sib, RED);
+                x = parentOf(x);
+            } else {
+                if (colorOf(rightOf(sib)) == BLACK) {
+                    setColor(leftOf(sib), BLACK);
+                    setColor(sib, RED);
+                    rotateRight(sib);
+                    sib = rightOf(parentOf(x));
+                }
+                setColor(sib, colorOf(parentOf(x)));
+                setColor(parentOf(x), BLACK);
+                setColor(rightOf(sib), BLACK);
+                rotateLeft(parentOf(x));
+                x = root;
+            }
+        } else { // symmetric
+            Entry<K,V> sib = leftOf(parentOf(x));
+
+            if (colorOf(sib) == RED) {
+                setColor(sib, BLACK);
+                setColor(parentOf(x), RED);
+                rotateRight(parentOf(x));
+                sib = leftOf(parentOf(x));
+            }
+
+            if (colorOf(rightOf(sib)) == BLACK &&
+                colorOf(leftOf(sib)) == BLACK) {
+                setColor(sib, RED);
+                x = parentOf(x);
+            } else {
+                if (colorOf(leftOf(sib)) == BLACK) {
+                    setColor(rightOf(sib), BLACK);
+                    setColor(sib, RED);
+                    rotateLeft(sib);
+                    sib = leftOf(parentOf(x));
+                }
+                setColor(sib, colorOf(parentOf(x)));
+                setColor(parentOf(x), BLACK);
+                setColor(leftOf(sib), BLACK);
+                rotateRight(parentOf(x));
+                x = root;
+            }
+        }
+    }
+
+    setColor(x, BLACK);
+}
+```
+
+TreeMap.successor图解后继节点搜索过程：
+
+![](./images/TreeMap.successor图解后继节点搜索过程.png)
