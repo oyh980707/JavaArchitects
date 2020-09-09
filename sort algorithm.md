@@ -1,6 +1,15 @@
 # 排序算法
 
-
+|排序算法 |	平均时间复杂度 |
+| :-: | :-: |
+|冒泡排序 |	O(n2) |
+|选择排序 |	O(n2) |
+|插入排序 |	O(n2) |
+|希尔排序 |	O(n1.5) |
+|快速排序 |	O(N*logN) |
+|归并排序 |	O(N*logN) |
+|堆排序 |	O(N*logN) |
+|基数排序 |	O(d(n+r)) |
 
 ## 冒泡算法(Bubble Sort)
 
@@ -215,7 +224,55 @@ public static void sort(int[] arr, int left, int right){
 
 ## 堆排序(HeapSort)
 
+**排序思想**
+
+```text
+
+```
+
 **平均时间复杂度：**O(NlogN) 
+
+```java
+public static void sort(int[] arr){
+    int temp = 0;
+    MakeMinHeap(arr);
+
+    for(int i=arr.length-1;i>0;i--){
+        temp = arr[0];
+        arr[0] = arr[i];
+        arr[i] = temp;
+        MinHeapFixdown(arr,0,i);
+    }
+}
+
+public static void MakeMinHeap(int[] arr){
+    for(int i=(arr.length-1)/2;i>=0;i--){
+        MinHeapFixdown(arr, i, arr.length);
+    }
+}
+
+private static void MinHeapFixdown(int[] arr, int i, int n) {
+    int j = 2*i+1;
+    int temp = 0;
+
+    while(j < n){
+        if(j+1<n && arr[j+1]<arr[j]){
+            j++;
+        }
+
+        if(arr[i] <= arr[j]){
+            break;
+        }
+
+        temp = arr[i];
+        arr[i] = arr[j];
+        arr[j] = temp;
+
+        i = j;
+        j = i*2+1;
+    }
+}
+```
 
 
 
