@@ -65,8 +65,8 @@ ps:但在实际应用中，我们千万不能犯强迫症甚至有洁癖。在�
 
 ```text
 1、私有化构造器,隐藏其所有的构造方法
-2、保证线程安全
-3、延迟加载
+2、保证线程安全(volatile、synchronized)
+3、是否延迟加载
 4、防止序列化和反序列化破坏单例
 5、防御反射攻击单例
 ```
@@ -87,17 +87,196 @@ ps:但在实际应用中，我们千万不能犯强迫症甚至有洁癖。在�
 类加载的时候就初始化，不管用与不用都占着空间，浪费了内存，有可能占着茅坑不拉屎
 ```
 
+基本代码实现
+
+```java
+/**
+ * 饿汉式单例
+ */
+public class HungrySingleton {
+    //类加载时初始化，或者使用静态块来初始化
+    private static final HungrySingleton HUNGRY_SINGLETON = new HungrySingleton();
+
+    //私有化构造方法
+    private HungrySingleton(){}
+
+    public static HungrySingleton getInstance(){
+        return HUNGRY_SINGLETON;
+    }
+}
+```
+
 #### 懒汉式单例
 
 懒汉式单例(Lazy Singleton)被外部类调用的时候内部类才会加载
 
+基本代码实现
+
+```java
+/**
+ * 懒汉式加载
+ * 1.不做线程安全的话，会出现两个测试线程得到的lazySingleton实例不一致，但是一致的情况也
+ * 未必只实例化了一次，当两个线程同时进入，同时出来，输出结果就一直，但是实例化了两次
+ * 2.给getInstance方法加上synchronized，是这个方法变成同步方法。用synchronized加锁
+ * 在线程数量比较多情况下，如果CPU 分配压力上升，会导致大批量线程出现阻塞，
+ * 从而导致程序运行性能大幅下降。
+ */
+public class LazySingleton {
+
+    private static LazySingleton lazySingleton = null;
+
+    private LazySingleton(){}
+
+    public synchronized static LazySingleton getInstance(){
+        if(lazySingleton == null){
+            lazySingleton = new LazySingleton();
+        }
+        return lazySingleton;
+    }
+}
+```
+
+使用双重检查锁机制的代码实现
+
+```java
+/**
+ * 双重检查锁的单例模式
+ */
+public class LazyDoubleCheckSingleton {
+    private static LazyDoubleCheckSingleton lazy = null;
+
+    private LazyDoubleCheckSingleton(){}
+
+    public static LazyDoubleCheckSingleton getInstance(){
+        if(lazy == null){
+            synchronized (LazyDoubleCheckSingleton.class){
+                if(lazy == null) {
+                    lazy = new LazyDoubleCheckSingleton();
+                }
+            }
+        }
+        return lazy;
+    }
+}
+```
+
+早期JVM还存在一个问题：指令重排
+
+如上双重锁实现代码中，在创建对象的时候有以下三个步骤：
+
+1. 分配对象内存空间
+2. 初始化对象
+3. 设置引用指向分配的内存地址
+
+这三个步骤的第三步可能会往前提，导致另一个线程在判空时，由于引用不为空，但是为初始化，就被直接返回使用了，导致直接访问到了一个为初始化的对象。
+
+只需要把变量声明为volatile就可以解决指令重排问题。具体代码如下：
+
+```java
+/**
+ * 双重检查锁+防止指令重排的单例模式
+ */
+public class LazyDoubleCheckSingleton {
+    private static volatile LazyDoubleCheckSingleton lazy = null;
+
+    private LazyDoubleCheckSingleton(){}
+
+    public static LazyDoubleCheckSingleton getInstance(){
+        if(lazy == null){
+            synchronized (LazyDoubleCheckSingleton.class){
+                if(lazy == null) {
+                    lazy = new LazyDoubleCheckSingleton();
+                }
+            }
+        }
+        return lazy;
+    }
+}
+```
+
+利用内部类的特性简单的完成延迟单例创建
+
+```java
+/**
+ * 静态内部类的方式
+ * 这种形式兼顾饿汉式的内存浪费,也兼顾 synchronized 性能问题,完美地屏蔽了这两个缺点
+ */
+public class LazyInnerClassSingleton {
+    private LazyInnerClassSingleton(){
+        if(LazyHolder.LAZY != null){
+            throw new RuntimeException("不允许创建两个实例!");
+        }
+    }
+    /*
+     * static 是为了使单例的空间共享
+     * final 保证这个方法不会被重写，重载
+     */
+    public static final LazyInnerClassSingleton getInstance(){
+        return LazyHolder.LAZY;
+    }
+
+    /*
+     * 默认使用内部类的时候,会先初始化内部类,如果没使用的话，内部类是不加载
+     */
+    private static class LazyHolder {
+        private static final LazyInnerClassSingleton LAZY = new LazyInnerClassSingleton();
+    }
+}
+```
+
 #### 反射破坏单例
 
-单例模式的构造方法除了加上private以外，没有做任何处理。如果我们使用反射来调用其构造方法，然后，再调用getInstance()方法，应该就会两个不同的实例，所有即使私有化了构造方法，也要在构造方法中判断实例是否存在，如果存在就抛出异常
+单例模式的构造方法除了加上private以外，没有做任何处理。如果我们使用反射来调用其构造方法，然后，再调用getInstance()方法，应该就会两个不同的实例，所有即使私有化了构造方法，也要在构造方法中判断实例是否存在，如果存在就抛出异常。还可以使用枚举
 
 #### 序列化破坏单例
 
 当我们将一个单例对象创建好，有时候需要将对象序列化然后写入到磁盘，下次使用时再从磁盘中读取到对象，反序列化转化为内存对象。反序列化后的对象会重新分配内存，即重新创建。那如果序列化的目标的对象为单例对象，就违背了单例模式的初衷，相当于破坏了单例
+
+1. 增加readResolve()方法即可
+
+```java
+/**
+ * 序列化时导致单例破坏
+ */
+public class SerializableSingleton implements Serializable {
+    /*
+     * 序列化就是说把内存中的状态通过转换成字节码的形式,从而转换一个 IO 流,
+     * 写入到其他地方(可以是磁盘、网络 IO),内存中状态给永久保存下来了
+     * 反序列化将已经持久化的字节码内容,转换为IO流通过IO流的读取，
+     * 进而将读取的内容转换为 Java 对象,在转换过程中会重新创建对象new
+     *
+     * 解决方案：只需要增加readResolve()方法即可
+     */
+    private static final SerializableSingleton SERIALIZABLE_SINGLETON = new SerializableSingleton();
+
+    private SerializableSingleton(){}
+
+    public static SerializableSingleton getInstance(){
+        return SERIALIZABLE_SINGLETON;
+    }
+
+    private Object readResolve() {
+        return SERIALIZABLE_SINGLETON;
+    }
+
+}
+```
+
+2. 枚举类型
+
+```java
+、**
+  * 1. 枚举可以避免反射创建，因为反射在通过newInstance创建对象时，会检查该类是否ENUM修饰，
+  *    如果是则抛出异常，反射失败。
+  * 2. 枚举避免序列化问题
+  */
+public enum EnumSingleton {
+    INSTANCE;
+    public static EnumSingleton getInstance(){
+        return INSTANCE;
+    }
+}
+```
 
 #### 注册式单例
 

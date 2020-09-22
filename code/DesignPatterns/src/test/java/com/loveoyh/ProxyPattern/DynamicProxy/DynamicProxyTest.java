@@ -1,10 +1,5 @@
 package com.loveoyh.ProxyPattern.DynamicProxy;
 
-import sun.misc.ProxyGenerator;
-
-import java.io.FileOutputStream;
-import java.lang.reflect.Proxy;
-
 /**
  * @Created by oyh.Jerry
  * @Date 2020/02/24 21:42
