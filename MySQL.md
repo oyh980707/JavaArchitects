@@ -119,7 +119,34 @@ redo log用于保证crash-safe能力。innodb_flush_log_at_trx_commit这个参�
 
 sync_binlog这个参数设置成1的时候，表示每次事务的binlog都持久化到磁盘。这个参数也建议设置成1，这样可以保证MySQL异常重启之后binlog不丢失。 
 
+**两阶段提交**
+崩溃恢复时的判断规则
+- 如果redo log里面的事务是完整的，也就是已经有了commit标识，则直接提交；
+- 如果redo log里面的事务只有完整的prepare，则判断对应的事务binlog是否存在并完整：
+    a. 如果是，则提交事务；
+    b. 否则，回滚事务。
+```text
+一个事务binlog的完整格式：
+- statement格式的binlog，最后会有COMMIT。
+- row格式的binlog，最后会有一个XID event。
+在MySQL 5.6.2版本以后，还引入了binlog-checksum参数，用来验证binlog内容的正确性。对于binlog日志由于磁盘原因，可能会在日志中间出错的情况，MySQL可以通过校验checksum的结果来发现。
 
+redo log 和 binlog它们有一个共同的数据字段，叫XID。崩溃恢复的时候，会按顺序扫描redo log
+- 如果碰到既有prepare、又有commit的redo log，就直接提交。
+- 如果碰到只有parepare、而没有commit的redo log，就拿着XID去binlog找对应的事务。
+
+处于prepare阶段的redo log加上完整binlog，重启就能恢复，这个与数据与备份的一致性有关。binlog写完以后MySQL发生崩溃，这时候binlog已经写入了，之后就会被从库（或者用这个binlog恢复出来的库）使用。所以，在主库上也要提交这个事务。采用这个策略，主库和备库的数据就保证了一致性。
+```
+
+```text
+redo log并没有记录数据页的完整数据，所以它并没有能力自己去更新磁盘数据页，也就不存在“数据最终落盘，是由redo log更新过去”的情况。
+- 如果是正常运行的实例的话，数据页被修改以后，跟磁盘的数据页不一致，称为脏页。最终数据落盘，就是把内存中的数据页写盘。这个过程，甚至与redo log毫无关系。
+- 在崩溃恢复场景中，InnoDB如果判断到一个数据页可能在崩溃恢复的时候丢失了更新，就会将它读到内存，然后让redo log更新内存内容。更新完成后，内存页变成脏页，就回到了第一种情况的状态。
+```
+先修改内存，还是先写redo log文件
+```text
+redo log buffer就是一块内存，用来先存redo日志的。真正把日志写到redo log文件（文件名是 ib_logfile+数字），是在执行commit语句的时候做的。
+```
 
 **事务隔离**
 
