@@ -328,10 +328,9 @@ B+树这种索引结构，可以利用索引的“最左前缀”，来定位记
 ```text
 例如：
 联合索引(a,b,c)，如果既有条件a也有条件c，那么根据前缀规则则会通过该索引搜索树根据条件a搜索结果，然后在MySQL5.6之前，只能再进行回表查询，到主键索引上找出数据行，在进行对比条件c
-而在MySQL5.6及以后就引入了索引下推优化，可以在索引遍历过程中，对索引中	包含的字段先做判断，直接过滤掉不满足条件的记录，减少回表的次数
+而在MySQL5.6及以后就引入了索引下推优化，可以在索引遍历过程中，对索引中包含的字段先做判断，直接过滤掉不满足条件的记录，减少回表的次数
 也就是例子中的判断条件a，同时也判断条件c，对于不满足的直接跳过，进而可以减少回表的次数
 ```
-
 
 
 ```text
@@ -874,4 +873,133 @@ show table status 命令输出结果里面也有一个TABLE_ROWS用于显示这�
 如果这个“字段”定义允许为null，那么执行的时候，判断到有可能是null，还要把值取出来再判断一下，不是null才累加。
 
 count(*)是例外，并不会把全部字段取出来，而是专门做了优化，不取值。count(*)肯定不是null，按行累加。
+```
+
+**order by 工作原理**
+
+假设定义如下表：
+```text
+CREATE TABLE `t` (
+  `id` int(11) NOT NULL,
+  `city` varchar(16) NOT NULL,
+  `name` varchar(16) NOT NULL,
+  `age` int(11) NOT NULL,
+  `addr` varchar(128) DEFAULT NULL,
+  PRIMARY KEY (`id`),
+  KEY `city` (`city`)
+) ENGINE=InnoDB;
+
+查询语句：select city,name,age from t where city='杭州' order by name limit 1000;
+```
+全字段排序：通常情况下，这个语句执行流程为
+1. 初始化sort_buffer，确定放入name、city、age这三个字段；
+2. 从索引city找到第一个满足city='杭州’条件的主键id；
+3. 到主键id索引取出整行，取name、city、age三个字段的值，存入sort_buffer中；
+4. 从索引city取下一个记录的主键id；
+5. 重复步骤3、4直到city的值不满足查询条件为止；
+6. 对sort_buffer中的数据按照字段name做快速排序；
+7. 按照排序结果取前1000行返回给客户端。
+
+![全字段排序](./images/全字段排序.png)
+
+“按name排序”可能在内存中完成，也可能需要使用外部排序，这取决于排序所需的内存和参数sort_buffer_size。
+```text
+sort_buffer_size：就是MySQL为排序开辟的内存（sort_buffer）的大小。如果要排序的数据量小于sort_buffer_size，排序就在内存中完成。但如果排序数据量太大，内存放不下，则不得不利用磁盘临时文件辅助排序。
+```
+
+确定一个排序语句是否使用了临时文件方法
+```sql
+/* 打开optimizer_trace，只对本线程有效 */
+SET optimizer_trace='enabled=on'; 
+/* @a保存Innodb_rows_read的初始值 */
+select VARIABLE_VALUE into @a from  performance_schema.session_status where variable_name = 'Innodb_rows_read';
+/* 执行语句 */
+select city, name,age from t where city='杭州' order by name limit 1000; 
+/* 查看 OPTIMIZER_TRACE 输出 */
+SELECT * FROM `information_schema`.`OPTIMIZER_TRACE`\G
+/* @b保存Innodb_rows_read的当前值 */
+select VARIABLE_VALUE into @b from performance_schema.session_status where variable_name = 'Innodb_rows_read';
+/* 计算Innodb_rows_read差值 */
+select @b-@a;
+```
+
+![全排序的OPTIMIZER_TRACE部分结果](./images/全排序的OPTIMIZER_TRACE部分结果.png)
+```text
+number_of_tmp_files：排序过程中使用的临时文件数。内存放不下时，就需要使用外部排序，外部排序一般使用归并排序算法。也就是说MySQL将需要排序的数据分成12份，每一份单独排序后存在这些临时文件中。然后把这12个有序文件再合并成一个有序的大文件。
+
+如果sort_buffer_size超过了需要排序的数据量的大小，number_of_tmp_files就是0，表示排序可以直接在内存中完成。否则就需要放在临时文件中排序。sort_buffer_size越小，需要分成的份数越多，number_of_tmp_files的值就越大。
+
+sort_mode里面的packed_additional_fields的意思是排序过程对字符串做了“紧凑”处理。即使name字段的定义是varchar(16)，在排序过程中还是要按照实际长度来分配空间的。
+```
+
+**rowid排序**
+在上面这个算法过程里面，只对原表的数据读了一遍，剩下的操作都是在sort_buffer和临时文件中执行的。但如果查询要返回的字段很多的话，那么sort_buffer里面要放的字段数太多，这样内存里能够同时放下的行数很少，要分成很多个临时文件，排序的性能会很差。
+
+max_length_for_sort_data：是MySQL中专门控制用于排序的行数据的长度的一个参数。即如果单行的长度超过这个值，MySQL就认为单行太大，要换一个算法。
+```text
+SET max_length_for_sort_data = 16;
+```
+city、name、age 这三个字段的定义总长度是36，把max_length_for_sort_data设置为16，就会更换算法，整个执行流程就变为：
+1. 初始化sort_buffer，确定放入两个字段，即name和id；
+2. 从索引city找到第一个满足city='杭州’条件的主键id，也就是图中的ID_X；
+3. 到主键id索引取出整行，取name、id这两个字段，存入sort_buffer中；
+4. 从索引city取下一个记录的主键id；
+5. 重复步骤3、4直到不满足city='杭州’条件为止，也就是图中的ID_Y；
+6. 对sort_buffer中的数据按照字段name进行排序；
+7. 遍历排序结果，取前1000行，并按照id的值回到原表中取出city、name和age三个字段返回给客户端。
+这个执行流程的示意图如下，称为rowid排序。
+
+需要说明的是，最后的“结果集”是一个逻辑概念，实际上MySQL服务端从排序后的sort_buffer中依次取出id，然后到原表查到city、name和age这三个字段的结果，不需要在服务端再耗费内存存储结果，是直接返回给客户端的。
+
+![rowid排序的OPTIMIZER_TRACE部分输出](./images/rowid排序的OPTIMIZER_TRACE部分输出.png)
+从OPTIMIZER_TRACE的结果中，看到另外两个信息也变了。
+- 图中的examined_rows的值还是4000，表示用于排序的数据是4000行。但是select @b-@a这个语句的值变成5000了。因为这时候除了排序过程外，在排序完成后，还要根据id去原表取值。由于语句是limit 1000，因此会多读1000行。
+- sort_mode变成了<sort_key, rowid>，表示参与排序的只有name和id这两个字段。
+- number_of_tmp_files变成10了，是因为这时候参与排序的行数虽然仍然是4000行，但是每一行都变小了，因此需要排序的总数据量就变小了，需要的临时文件也相应地变少了。
+
+全字段排序 VS rowid排序
+- 如果MySQL实在是担心排序内存太小，会影响排序效率，才会采用rowid排序算法，这样排序过程中一次可以排序更多行，但是需要再回到原表去取数据。
+- 如果MySQL认为内存足够大，会优先选择全字段排序，把需要的字段都放到sort_buffer中，这样排序后就会直接从内存里面返回查询结果了，不用再回到原表去取数据。
+- 这也就体现了MySQL的一个设计思想：如果内存够，就要多利用内存，尽量减少磁盘访问。
+- 并不是所有的order by语句，都需要排序操作的。从上面分析的执行过程，MySQL之所以需要生成临时表，并且在临时表上做排序操作，其原因是原来的数据都是无序的。
+
+```text
+alter table t add index city_user(city, name);
+```
+在这个索引里面，我们依然可以用树搜索的方式定位到第一个满足city='杭州’的记录，并且额外确保了，接下来按顺序取“下一条记录”的遍历过程中，只要city的值是杭州，name的值就一定是有序的。
+这样整个查询过程的流程就变成了：
+1. 从索引(city,name)找到第一个满足city='杭州’条件的主键id；
+2. 到主键id索引取出整行，取name、city、age三个字段的值，作为结果集的一部分直接返回；
+3. 从索引(city,name)取下一个记录主键id；
+4. 重复步骤2、3，直到查到第1000条记录，或者是不满足city='杭州’条件时循环结束；
+
+覆盖索引
+```text
+alter table t add index city_user_age(city, name, age);
+```
+对于city字段的值相同的行来说，还是按照name字段的值递增排序的，此时的查询语句也就不再需要排序了。整个查询语句的执行流程就变成了：
+1. 从索引(city,name,age)找到第一个满足city='杭州’条件的记录，取出其中的city、name和age这三个字段的值，作为结果集的一部分直接返回；
+2. 从索引(city,name,age)取下一个记录，同样取出这三个字段的值，作为结果集的一部分直接返回；
+3. 重复执行步骤2，直到查到第1000条记录，或者是不满足city='杭州’条件时循环结束。
+用了覆盖索引，性能上会快很多。
+
+并不是说要为了每个查询能用上覆盖索引，就要把语句中涉及的字段都建上联合索引，毕竟索引还是有维护代价的。这是一个需要权衡的决定。
+
+```text
+注：
+    当MySQL去更新一行，但是要修改的值跟原来的值是相同的，这时候MySQL会真的去执行一次修改。
+    假设：
+    1. MySQL读出数据，发现值与原来相同，不更新，直接返回，执行结束。这里我们可以用一个锁实验来确认。
+    两个会话，一个显示开启事务做更新，但不提交，另一个更新就会被阻塞，加锁这个动作是InnoDB才能做的，所以会有innoDB的操作。不可能是这种情况
+    2. MySQL调用了InnoDB引擎提供的接口，但是引擎发现值与原来相同，不更新，直接返回。用一个可见性实验来确认。
+    两个会话，一个会话开启事务后，在另一个会话中更新一个值，在回到第一个会话中更新和另一个会话一样的值，这时候查询结果就是该会话更新后的结果，如果该会话没有做更新操作，它是看不见另一个会话的更新操作的。说明MySQL做了真正的更新操作，所以这个假设不成立。
+    所以最后的结论：InnoDB认真执行了更新操作哪怕是和未更新的值一样的，该加锁的加锁，该更新的更新。
+
+其实MySQL是确认了的。只是在这个语句里面(update t set a=3 where id=1)，MySQL认为读出来的值，只有一个确定的 (id=1), 而要写的是(a=3)，只从这两个信息是看不出来“不需要修改”的。
+```
+如下验证：
+![可见性验证方式--对照](./images/可见性验证方式--对照.png)
+说明MySQL查出来确定了id=1和a=3，然后更新为a=3，确定了这个是不需要修改的，所以就没做更新操作。所以说最后可重复读隔离级别下，未触发更新操作，最后前后读出来的值都是一样的。
+```text
+但是更新的时候既然读了数据，读取了一行的数据，那么为什么不进行判断后在做更新，相等就不需要做更新。
 ```
