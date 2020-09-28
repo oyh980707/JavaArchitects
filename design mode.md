@@ -6,7 +6,25 @@
 
 简单工厂模式（Simple Factory Pattern）是指由一个工厂对象决定创建出哪一种产品类的实例，但它不属于GOF，23种设计模式
 
-简单工厂适用于工厂类负责创建的对象较少的场景，且客户端只需要传入工厂类的参数，对于如何创建对象的逻辑不需要关心
+简单工厂适用于工厂类负责创建的对象较少的场景，且客户端只需要传入类的参数，对于如何创建对象的逻辑不需要关心
+
+```java
+/**
+ * 简单工厂类
+ */
+public class DefualtCourseFactory {
+    public static ICourse create(Class className){
+        try {
+            if (className != null && !"".equals(className)){
+                return (ICourse) className.newInstance();
+            }
+        }catch (Exception e){
+            e.printStackTrace();
+        }
+        return  null;
+    }
+}
+```
 
 #### 工厂方法模式
 
@@ -29,6 +47,31 @@
 - 增加了系统的抽象性和理解难度
 ```
 
+```java
+/**
+ * 工厂接口
+ */
+public interface CourseFactory {
+    public ICourse create();
+}
+/**
+ * java课程工厂类
+ */
+public class JavaCourseFactory implements CourseFactory {
+    public ICourse create() {
+        return new JavaCourse();
+    }
+}
+/**
+ * python课程工厂类
+ */
+public class PythonCourseFactory implements CourseFactory {
+    public ICourse create() {
+        return new PythonCourse();
+    }
+}
+```
+
 #### 抽象工厂模式
 
 抽象工厂模式（Abstract Factory Pattern）是指提供一个创建一系列相关或相互依赖对象的接口，无须指定他们具体的类。客户端（应用层）不依赖于产品类实例如何被创建、实现等细节，强调的是一系列相关的产品对象（属于同一产品族）一起使用创建对象需要大量重复的代码。需要提供一个产品类的库，所有的产品以同样的接口出现，从而使客户端不依赖于具体实现。
@@ -41,6 +84,8 @@
 
 ps:但在实际应用中，我们千万不能犯强迫症甚至有洁癖。在实际需求中产品等级结构升级是非常正常的一件事情。我们可以根据实际情况，只要不是频繁升级，可以不遵循开闭原则。代码每半年升级一次或者每年升级一次又有何不可呢？ 
 ```
+
+![抽象工厂](./images/抽象工厂.png)
 
 ### 单例模式(Singleton Pattern)
 
@@ -285,6 +330,67 @@ public enum EnumSingleton {
 #### ThreadLocal线程单例
 
 ThreadLocal 不能保证其创建的对象是全局唯一，但是能保证在单个线程中是唯一的，天生的线程安全。
+
+### 构造者模式(Builder Pattern)
+
+定义：将一个复杂对象的构建与其表示分离，使得同样的构建过程可以创建不同的表示
+
+场景：当一个类的构造函数参数个数过多，而且这些参数有些是可选的参数，有些参数的填写依赖另一些参数，可以考虑使用构造者模式。
+通常解决方案：
+1. 折叠构造函数模式，代码中构造函数调用构造函数，将非必填的给默认值。
+    ```text
+    使用及阅读不方便。
+    ```
+2. Java Bean 模式，采用getter、setter方式赋值。
+    ```text
+    对象的状态容易发生变化，造成错误。因为类中的属性是分步设置的，所以就容易出错。
+    而且暴露setter导致数据的安全性问题，如果希望创建不可变对象，也就是说，对象在创建好之后，就不能再修改内部的属性值，要实现这个功能，我们就不能在类中暴露 set() 方法。构造函数配合 set() 方法来设置属性值的方式就不适用了
+    ```
+采用构造者模式的通用步骤：
+```text
+1. 在 A类 中创建一个静态内部类 Builder ，然后将 A类 中的参数都复制到 Builder 类中。
+2. 在 A类 中创建一个private的构造函数，参数为 Builder 类型
+3. 在Builder中创建一个public的构造函数，参数为 A类 中必填的那些参数。
+4. 在Builder中创建设置函数，对 A类 中那些可选参数进行赋值，返回值为 Builder 类型的实例(this)。
+5. 在Builder中创建一个build()方法，在其中构建 A类 的实例并返回。
+```
+
+举例：
+spring framework中`org.springframework.http.ResposeEntity.class`采用的就是构造器模式
+
+与工厂模式的区别：
+```text
+工厂模式是用来创建不同但是相关类型的对象（继承同一父类或者接口的一组子
+类），由给定的参数来决定创建哪种类型的对象。建造者模式是用来创建一种类型的复杂对
+象，通过设置不同的可选参数，“定制化”地创建不同的对象。
+
+场景解释：
+顾客走进一家餐馆点餐，我们利用工厂模式，根据用户不同的选择，来制作不同的食物，比
+如披萨、汉堡、沙拉。对于披萨来说，用户又有各种配料可以定制，比如奶酪、西红柿、起
+司，我们通过建造者模式根据用户选择的不同配料来制作披萨。
+```
+
+实现代码如下：
+```text
+public class Demo {
+	private final String str;
+	private Demo(DefaultBuilder builder){
+		this.str = builder.str;
+	}
+
+	public static class DefaultBuilder {
+		private String str;
+		public Demo build(){
+			return new Demo(this);
+		}
+		public DefaultBuilder setStr(String str){
+			this.str = str;
+			return this;
+		}
+	}
+}
+```
+
 
 ### 原型模式(Prototype Pattern)
 
