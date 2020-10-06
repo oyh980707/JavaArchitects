@@ -3,7 +3,6 @@ package com.loveoyh.ProxyPattern.CGLibProxy;
 import net.sf.cglib.proxy.Enhancer;
 import net.sf.cglib.proxy.MethodInterceptor;
 import net.sf.cglib.proxy.MethodProxy;
-import org.omg.PortableInterceptor.Interceptor;
 
 import java.lang.reflect.Method;
 

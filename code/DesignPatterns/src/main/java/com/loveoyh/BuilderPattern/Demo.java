@@ -5,11 +5,7 @@ package com.loveoyh.BuilderPattern;
  */
 public class Demo {
 	private final String str;
-	
-	private Demo(String str) {
-		this.str = str;
-	}
-	
+
 	private Demo(DefaultBuilder builder){
 		this.str = builder.str;
 	}
