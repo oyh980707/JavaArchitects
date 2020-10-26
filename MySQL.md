@@ -1133,6 +1133,10 @@ select b.* from A a, B b where a.name=b.name and a.id=1;
 
 
 
+**幻读**
+
+
+
 
 
 
