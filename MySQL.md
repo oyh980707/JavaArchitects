@@ -1510,5 +1510,72 @@ binlog也可以组提交了。在执行图5中第4步把binlog fsync到磁盘时
 3. 将innodb_flush_log_at_trx_commit设置为2。这样做的风险是，主机掉电的时候会丢数据。
 
 
+**MySQL主备的基本原理**
+
+一个事务日志同步的完整过程
+1. 在备库上通过change master命令，设置主库的IP、端口、用户名、密码，以及要从哪个位置开始请求binlog，这个位置包含文件名和日志偏移量。
+2. 在备库上执行start slave命令，这时候备库会启动多个线程，即一个io_thread和一个或多个sql_thread。其中io_thread负责与主库建立连接。
+3. 主库校验完用户名、密码后，开始按照备库传过来的位置，从本地读取binlog，发给备库。
+4. 备库拿到binlog后，写到本地文件，称为中转日志（relay log）。
+5. sql_thread读取中转日志，解析出日志里的命令，并执行。
+
+
+**binlog的三种格式对比**
+
+- statement
+
+当binlog_format=statement时，binlog里面记录的就是SQL语句的原文
+
+- row
+
+当binlog_format=row时，binlog_row_image的默认配置是FULL，binlog里面记录的操作包含所有的原始数据，保证了在另一个库中执行的一致性
+如果把binlog_row_image设置为MINIMAL，则只会记录必要的信息，例如binlog值记录的操作和操作的记录的id值
+
+
+mixed
+
+解决问题:
+- 有些statement格式的binlog可能会导致主备不一致，所以要使用row格式。
+- row格式的缺点是，很占空间。比如你用一个delete语句删掉10万行数据，用statement的话就是一个SQL语句被记录到binlog中，占用几十个字节的空间。但如果用row格式的binlog，就要把这10万条记录都写到binlog中。这样做，不仅会占用更大的空间，同时写binlog也要耗费IO资源，影响执行速度。
+
+所以，MySQL就取了个折中方案，也就是有了mixed格式的binlog。mixed格式的意思是，MySQL自己会判断这条SQL语句是否可能引起主备不一致，如果有可能，就用row格式，否则就用statement格式。
+也就是说，mixed格式可以利用statment格式的优点，同时又避免了数据不一致的风险。
+
+
+现在越来越多的场景要求把MySQL的binlog格式设置成row。这么做的理由有很多，最直接的理由是**恢复数据**。简单举例如下：
+```text
+delete
+执行delete语句，row格式的binlog也会把被删掉的行的整行信息保存起来。所以，如果你在执行完一条delete语句以后，发现删错数据了，可以直接把binlog中记录的delete语句转成insert，把被错删的数据插入回去就可以恢复了。
+
+insert
+row格式下，insert语句的binlog里会记录所有字段信息，这些信息可以用来精确定位刚刚被插入的那一行。这时，你直接把insert语句转成delete语句，删除掉这被误插入的一行数据就可以了。
+
+update
+update语句的话，binlog里面会记录修改前整行的数据和修改后的整行数据。所以，如果你误执行了update语句的话，只需要把这个event前后的两行信息对调一下，再去数据库里面执行，就能恢复这个更新操作了。
+```
+
+mysql> insert into t values(10,10, now());
+当binlog格式设置为mixed，则MySQL会把它记录为statement格式，可以看出主备执行时间不同插入的now()函数或取得本地时间也会不同，但是在binlog记录的时候，他会多记录一条命令：SETTIMESTAMP=1546103491。它用 SETTIMESTAMP命令约定了接下来的now()函数的返回时间。通过这条SETTIMESTAMP命令，MySQL就确保了主备数据的一致性。
+
+**循环复制问题**
+
+binlog的特性确保了在备库执行相同的binlog，可以得到与主库相同的状态。可以认为正常情况下主备的数据是一致的。在学习过程中接触较多的是M-S结构，也就是主从结构，一个主库一个备库，但是实际生产用的比较多的是双M结构相互充当主备库，但是双M结构还有一个问题需要解决，如下：
+
+业务逻辑在节点A上更新了一条语句，然后再把生成的binlog发给节点B，节点B执行完这条更新语句后也会生成binlog。（建议你把参数log_slave_updates设置为on，表示备库执行relay log后生成binlog）。如果节点A同时是节点B的备库，相当于又把节点B新生成的binlog拿过来执行了一次，然后节点A和B间，会不断地循环执行这个更新语句，也就是循环复制了。要解决这个问题就需要用到MySQL在binlog中记录了这个命令第一次执行时所在实例的server id。因此，我们可以用下面的逻辑，来解决两个节点间的循环复制的问题：
+1. 规定两个库的server id必须不同，如果相同，则它们之间不能设定为主备关系；
+2. 一个备库接到binlog并在重放的过程中，生成与原binlog的server id相同的新的binlog；
+3. 每个库在收到从自己的主库发过来的日志后，先判断server id，如果跟自己的相同，表示这个日志是自己生成的，就直接丢弃这个日志。
+按照这个逻辑，如果设置了双M结构，日志的执行流就会变成这样：
+1. 从节点A更新的事务，binlog里面记的都是A的server id；
+2. 传到节点B执行一次以后，节点B生成的binlog 的server id也是A的server id；
+3. 再传回给节点A，A判断到这个server id与自己的相同，就不会再处理这个日志。所以，死循环在这里就断掉了。
+
+
+
+
+
+
+
+
 
 
