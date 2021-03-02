@@ -1657,6 +1657,7 @@ seconds_behind_master的计算方法：
 	```
 
 	
+
 **并行复制策略**
 
 在官方的5.6版本之前，MySQL只支持单线程复制，由此在主库并发高、TPS高时就会出现严重的主备延迟问题。
@@ -1772,16 +1773,64 @@ MySQL 5.7.22版本里，MySQL增加了一个新的并行复制策略，基于WRI
 因此，MySQL 5.7.22的并行复制策略在通用性上还是有保证的。对于“表上没主键”和“外键约束”的场景，WRITESET策略也是没法并行的，也会暂时退化为单线程模型。
 ```
 
+**主备切换**
+
+![](./images/主多从基本结构-主备切换.png)
+
+基于位点的主备切换
+```text
+如图，当B设置为A`的从库，则需要在从库B上执行命令change master命令，此命令参数为：主库A’的IP、端口、用户名和密码，主库的master_log_name文件的master_log_pos这个位置的日志继续同步
+
+一种取同步位点的方法：
+1. 等待新主库A’把中转日志（relay log）全部同步完成；
+2. 在A’上执行showmaster status命令，得到当前A’上最新的File 和 Position；
+3. 取原主库A故障的时刻T；
+4. 用mysqlbinlog工具解析A’的File，得到T时刻的位点。
+可以得到位点，但是这个位置的值并不准确，因为这个位点的事务在A中执行了然后A故障，但是此时的事务日志可能已经被B同步了，此时如果设置B的位点为A`中得到的位点可能出错
+需要跳过这种错误，两种方法：
+1. 主动跳过一个事务
+2. 通过设置slave_skip_errors参数，直接设置跳过指定的错误
+```
+
+GTID
+
+MySQL 5.6 版本引入了GTID
+
+```text
+GTID的全称是Global Transaction Identifier，也就是全局事务ID，是一个事务在提交的时候生成的，是这个事务的唯一标识。它由两部分组成，格式是：GTID=server_uuid:gno
+其中：
+server_uuid是一个实例第一次启动时自动生成的，是一个全局唯一的值；
+gno是一个整数，初始值是1，每次提交事务的时候分配给这个事务，并加1。
+
+GTID模式的启动也很简单，我们只需要在启动一个MySQL实例的时候，加上参数gtid_mode=on和enforce_gtid_consistency=on就可以了。
+
+这个GTID有两种生成方式，而使用哪种方式取决于session变量gtid_next的值。
+1. 如果gtid_next=automatic，代表使用默认值。这时，MySQL就会把server_uuid:gno分配给这个事务。
+a. 记录binlog的时候，先记录一行 SET@@SESSION.GTID_NEXT=‘server_uuid:gno’;
+b. 把这个GTID加入本实例的GTID集合。
+2. 如果gtid_next是一个指定的GTID的值，比如通过set gtid_next='current_gtid’指定为current_gtid，那么就有两种可能：
+a. 如果current_gtid已经存在于实例的GTID集合中，接下来执行的这个事务会直接被系统忽
+略；
+b. 如果current_gtid没有存在于实例的GTID集合中，就将这个current_gtid分配给接下来要执行的事务，也就是说系统不需要给这个事务生成新的GTID，因此gno也不用加1。
+```
+
+基于GTID的主备切换
+
+```text
+我们把上图的主库故障这个时刻，实例A’的GTID集合记为set_a，实例B的GTID集合记为set_b。在实例B上执行start slave命令，取binlog的逻辑是这样的：
+1. 实例B指定主库A’，基于主备协议建立连接。
+2. 实例B把set_b发给主库A’。
+3. 实例A’算出set_a与set_b的差集，也就是所有存在于set_a，但是不存在于set_b的GITD的集合，判断A’本地是否包含了这个差集需要的所有binlog事务。
+a. 如果不包含，表示A’已经把实例B需要的binlog给删掉了，直接返回错误；
+b. 如果确认全部包含，A’从自己的binlog文件里面，找出第一个不在set_b的事务，发给B；
+4. 之后就从这个事务开始，往后读文件，按顺序取binlog发给B去执行。其实，这个逻辑里面包含了一个设计思想：在基于GTID的主备关系里，系统认为只要建立主备关系，就必须保证主库发给备库的日志是完整的。因此，如果实例B需要的日志已经不存在，A’就拒绝把日志发给B。
+这跟基于位点的主备协议不同。基于位点的协议，是由备库决定的，备库指定哪个位点，主库就发哪个位点，不做日志的完整性判断。
+
+之后这个系统就由新主库A’写入，主库A’的自己生成的binlog中的GTID集合格式是：server_uuid_of_A’:1-M。
+如果之前从库B的GTID集合格式是 server_uuid_of_A:1-N， 那么切换之后GTID集合的格式就变成了server_uuid_of_A:1-N, server_uuid_of_A’:1-M。主库A’之前也是A的备库，因此主库A’和从库B的GTID集合是一样的。这就达到了我们预期。
 
 
-
-
-
-
-
-
-
-
+```
 
 
 
