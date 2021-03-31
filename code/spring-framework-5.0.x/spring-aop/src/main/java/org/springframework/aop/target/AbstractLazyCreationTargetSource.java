@@ -23,7 +23,7 @@ import org.springframework.aop.TargetSource;
 import org.springframework.lang.Nullable;
 
 /**
- * {@link TargetSource} implementation that will
+ * {@link org.springframework.aop.TargetSource} implementation that will
  * lazily create a user-managed object.
  *
  * <p>Creation of the lazy target object is controlled by the user by implementing

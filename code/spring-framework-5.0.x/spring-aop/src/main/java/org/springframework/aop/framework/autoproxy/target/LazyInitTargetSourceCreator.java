@@ -48,7 +48,7 @@ import org.springframework.lang.Nullable;
  *
  * @author Juergen Hoeller
  * @since 1.2
- * @see BeanDefinition#isLazyInit
+ * @see org.springframework.beans.factory.config.BeanDefinition#isLazyInit
  * @see org.springframework.aop.framework.autoproxy.AbstractAutoProxyCreator#setCustomTargetSourceCreators
  * @see org.springframework.aop.framework.autoproxy.BeanNameAutoProxyCreator
  */

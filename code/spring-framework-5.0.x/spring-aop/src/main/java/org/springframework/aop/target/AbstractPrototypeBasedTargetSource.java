@@ -38,7 +38,7 @@ import org.springframework.beans.factory.config.ConfigurableBeanFactory;
  *
  * @author Rod Johnson
  * @author Juergen Hoeller
- * @see BeanFactory#getBean
+ * @see org.springframework.beans.factory.BeanFactory#getBean
  * @see PrototypeTargetSource
  * @see ThreadLocalTargetSource
  * @see CommonsPool2TargetSource

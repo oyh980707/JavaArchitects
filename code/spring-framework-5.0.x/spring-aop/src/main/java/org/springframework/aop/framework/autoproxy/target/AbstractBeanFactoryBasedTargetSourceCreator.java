@@ -37,7 +37,7 @@ import org.springframework.lang.Nullable;
 
 /**
  * Convenient superclass for
- * {@link TargetSourceCreator}
+ * {@link org.springframework.aop.framework.autoproxy.TargetSourceCreator}
  * implementations that require creating multiple instances of a prototype bean.
  *
  * <p>Uses an internal BeanFactory to manage the target instances,
@@ -50,7 +50,7 @@ import org.springframework.lang.Nullable;
  *
  * @author Rod Johnson
  * @author Juergen Hoeller
- * @see AbstractBeanFactoryBasedTargetSource
+ * @see org.springframework.aop.target.AbstractBeanFactoryBasedTargetSource
  * @see org.springframework.beans.factory.support.AbstractBeanFactory
  */
 public abstract class AbstractBeanFactoryBasedTargetSourceCreator
@@ -176,7 +176,7 @@ public abstract class AbstractBeanFactoryBasedTargetSourceCreator
 	 * Return whether this TargetSourceCreator is prototype-based.
 	 * The scope of the target bean definition will be set accordingly.
 	 * <p>Default is "true".
-	 * @see BeanDefinition#isSingleton()
+	 * @see org.springframework.beans.factory.config.BeanDefinition#isSingleton()
 	 */
 	protected boolean isPrototypeBased() {
 		return true;

@@ -27,8 +27,8 @@ import org.springframework.beans.factory.BeanFactoryAware;
 import org.springframework.util.ObjectUtils;
 
 /**
- * Base class for {@link TargetSource} implementations
- * that are based on a Spring {@link BeanFactory},
+ * Base class for {@link org.springframework.aop.TargetSource} implementations
+ * that are based on a Spring {@link org.springframework.beans.factory.BeanFactory},
  * delegating to Spring-managed bean instances.
  *
  * <p>Subclasses can create prototype instances or lazily access a
@@ -41,7 +41,7 @@ import org.springframework.util.ObjectUtils;
  * @author Juergen Hoeller
  * @author Rod Johnson
  * @since 1.1.4
- * @see BeanFactory#getBean
+ * @see org.springframework.beans.factory.BeanFactory#getBean
  * @see LazyInitTargetSource
  * @see PrototypeTargetSource
  * @see ThreadLocalTargetSource

@@ -31,9 +31,9 @@ import org.springframework.lang.Nullable;
  *
  * @author Rod Johnson
  * @author Stephane Nicoll
- * @see CommonsPool2TargetSource
- * @see ThreadLocalTargetSource
- * @see PrototypeTargetSource
+ * @see org.springframework.aop.target.CommonsPool2TargetSource
+ * @see org.springframework.aop.target.ThreadLocalTargetSource
+ * @see org.springframework.aop.target.PrototypeTargetSource
  */
 public class QuickTargetSourceCreator extends AbstractBeanFactoryBasedTargetSourceCreator {
 

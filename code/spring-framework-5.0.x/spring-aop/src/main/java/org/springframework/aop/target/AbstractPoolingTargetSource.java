@@ -41,7 +41,7 @@ import org.springframework.lang.Nullable;
  * {@link PoolingConfig} interface. The {@link #getPoolingConfigMixin()} method
  * makes these stats available on proxied objects through an IntroductionAdvisor.
  *
- * <p>This class implements the {@link DisposableBean}
+ * <p>This class implements the {@link org.springframework.beans.factory.DisposableBean}
  * interface in order to force subclasses to implement a {@link #destroy()}
  * method, closing down their object pool.
  *
