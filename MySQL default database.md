@@ -1,0 +1,70 @@
+# 默认数据库的表说明
+
+说明：Server version: 5.5.68-MariaDB MariaDB Server
+
+---
+
+## information_schema
+
+CHARACTER_SETS：字符集表，提供了mysql实例可用字符集的信息。是SHOW CHARACTER SET结果集取之此表 
+CLIENT_STATISTICS： 表保存有关客户端连接的统计信息。这是用户统计特性的一部分，默认情况下不启用。 
+COLLATIONS： 包含支持的排序规则列表。 
+COLLATION_CHARACTER_SET_APPLICABILITY： 显示哪些字符集与哪些排序规则相关联。 
+COLUMNS： 提供关于服务器上每个表中的列的信息。
+COLUMN_PRIVILEGES：(列权限)，给出了关于列权限的信息。信息源自mysql.columns_priv授权表。是非标准表。 
+ENGINES：显示存储引擎信息。
+EVENTS：存储事件信息。
+FILES：文件表在MariaDB中没有使用了。
+SESSION_STATUS：
+GLOBAL_STATUS：GLOBAL_STATUS和SESSION_STATUS表分别存储所有状态变量及其全局值和会话值的记录。这与SHOW STATUS命令SHOW GLOBAL STATUS和SHOW SESSION STATUS显示的信息相同。
+SESSION_VARIABLES：
+GLOBAL_VARIABLES：GLOBAL_VARIABLES表和SESSION_VARIABLES表分别存储所有系统变量及其全局值和会话值的记录。这与SHOW VARIABLES命令SHOW GLOBAL VARIABLES和SHOW SESSION VARIABLES显示的信息相同
+INDEX_STATISTICS： 显示索引使用情况的统计信息，并能查找未使用的索引和生成删除索引的命令
+KEY_CACHES：显示关于分段键缓存的统计信息
+KEY_COLUMN_USAGE：显示哪些键列有约束
+PARAMETERS：存储关于存储过程和存储函数参数的信息。
+PARTITIONS：包含有关表分区的信息,每个记录对应于已分区表的单个分区或子分区.每个非分区表在PARTITIONS表中也有一条记录，但是大多数值都是NULL。
+PLUGINS：包含关于服务器插件的信息，无论是否安装。
+PROCESSLIST：包含有关运行线程的信息。
+PROFILING：包含关于语句资源使用的信息。只有当概要分析会话变量(profiling设置为1时，才记录概要分析信息。
+REFERENTIAL_CONSTRAINTS：包含有关外键的信息。KEY_COLUMN_USAGE表中列出了单个列。
+ROUTINES：存储关于存储过程和存储函数的信息。过程和函数的参数参考 information_schema.PARAMETERS
+SCHEMATA：存储的是服务器上的数据库信息
+SCHEMA_PRIVILEGES：包含有关数据库权限的信息。
+STATISTICS：提供关于表索引的信息。
+TABLES： shows information about the various non-`TEMPORARY` tables (except tables from the `Information Schema` database) and views on the server. 
+TABLESPACES：包含有关活动表空间的信息。MySQL和myriad数据库的扩展的东西，不包含innoDB的表空间
+TABLE_CONSTRAINTS：包含那些有约束的表信息
+TABLE_PRIVILEGES：存储表权限信息。源于mysql.tables_priv
+TABLE_STATISTICS：有关表使用的统计，默认情况是没有打开的。
+TRIGGERS：维护触发器的信息。
+USER_PRIVILEGES：存储全局的用户特权信息，源自于mysql.user授权表
+USER_STATISTICS：保存关于用户活动的统计信息。这是用户统计特性的一部分，默认情况下不启用。 可以使用这个表来找出哪些用户造成了最多的负载，哪些用户滥用了负载。您还可以使用此表来衡量服务器的容量
+VIEWS：存储视图的信息。需要有show views权限，否则无法查看视图信息。
+INNODB_CMPMEM：
+INNODB_CMPMEM_RESET：包含缓冲池中压缩页面的状态信息，查询该表需要PROCESS权限
+INNODB_CMP：
+INNODB_CMP_RESET：包含与压缩XtraDB/InnoDB表相关的压缩操作状态信息，查询该表需要PROCESS权限
+INNODB_RSEG 
+INNODB_UNDO_LOGS
+INNODB_SYS_TABLESTATS 
+INNODB_LOCK_WAITS
+INNODB_INDEX_STATS 
+INNODB_CHANGED_PAGES
+INNODB_BUFFER_POOL_PAGES
+INNODB_TRX
+INNODB_BUFFER_POOL_PAGES_INDEX
+INNODB_LOCKS 
+INNODB_BUFFER_POOL_PAGES_BLOB
+INNODB_SYS_TABLES
+INNODB_SYS_FIELDS
+INNODB_SYS_COLUMNS 
+INNODB_SYS_STATS
+INNODB_SYS_FOREIGN 
+INNODB_SYS_INDEXES 
+XTRADB_ADMIN_COMMAND
+INNODB_TABLE_STATS 
+INNODB_SYS_FOREIGN_COLS
+INNODB_BUFFER_PAGE_LRU
+INNODB_BUFFER_POOL_STATS
+INNODB_BUFFER_PAGE
