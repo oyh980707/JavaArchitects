@@ -41,3 +41,29 @@ public void function(){
 为了防止重复提交，如下处理：
 
 创建订单的时候，用订单信息计算一个哈希值，判断Redis中是否有key，有则不允许重复提交，没有则生成一个新的key，有则不允许重复提交，没有则生成一个新的key，放到redis中设置一个过期时间，然后创建订单。其实就是一段时间内不可以提交重复相同的操作。
+
+
+
+## ERROR 1044 (42000): Access denied for user ''@'localhost' to database 'ms
+
+```text
+上面的问题是由于mysql.user表中存在一条记录为用户名为''登录地址为本地，我这里是没有设置密码。
+每次登录相当于匿名登录，权限也没有。所以需要数据库跳过权限验证修改这张表后方可正常。具体步骤如下：
+(以下命令依照数据库和安装方式有所不同,我是用的是MariaDB,对应关闭命令为service mariadb stop)
+1. 关闭数据库
+	service mysqld stop   //linux下使用   
+	net stop mysql    //window下使用
+2. 屏蔽权限
+    mysqld_safe --skip-grant-table //linux下使用
+    或者使用如下命令
+	mysqld_safe --user=mysql --skip-grant-tables --skip-networking & //linux下使用
+    mysqld --skip-grant-table  //window下使用
+3. 、新开起一个终端输入
+# mysql -u root mysql
+mysql> use mysql;
+mysql> select host,user,password from user;//检查表，看是否有什么异常，这就是登录的用户表
+mysql> UPDATE user SET Password=PASSWORD('newpassword') where USER='root';
+mysql> delete from user where host="localhost" and user=''; // 依照每个人的错误不一样擦做也不一样。我的处理方式是删除本地匿名登录用户
+mysql> FLUSH PRIVILEGES;   //更新命令，记得要这句话，否则如果关闭先前的终端，又会出现原来的错误
+```
+
