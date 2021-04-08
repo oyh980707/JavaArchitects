@@ -1442,6 +1442,79 @@ write和fsync的时机是由参数sync_binlog控制的：
 但是，将sync_binlog设置为N，对应的风险是：如果主机发生异常重启，会丢失最近N个事务的binlog日志。
 ```
 
+**binlog 开启方式**
+```text
+在my.inf主配置文件中直接添加三行
+
+log_bin=ON
+log_bin_basename=/var/lib/mysql/mysql-bin
+log_bin_index=/var/lib/mysql/mysql-bin.index
+
+第一个参数是打开binlog日志
+第二个参数是binlog日志的基本文件名，后面会追加标识来表示每一个文件
+第三个参数指定的是binlog文件的索引文件，这个文件管理了所有的binlog文件的目录
+ 
+也有一种简单的配置，一个参数就可以搞定
+
+log-bin=/var/lib/mysql/mysql-bin
+
+这一个参数的作用和上面三个的作用是相同的，mysql会根据这个配置自动设置log_bin为on状态，自动设置log_bin_index文件为你指定的文件名后跟.index
+ 
+这些配置完毕之后对于5.7以下版本应该是可以了，但是我们这个时候用的如果是5.7及以上版本的话，重启mysql服务会报错。这个时候我们必须还要指定一个参数
+server-id=123454
+
+重新启动就可以了
+systemctl restart mysqld
+systemctl restart mariadb.service
+
+查看：show variables like '%log_bin%';
+
+使用：
+1. 使用show binlog events
+# 查看日志文件的大小
+show binary logs;
+# 查看当前正在写入的binlog文件
+show master status\G;
+# 查看指定binlog文件的内容语法：
+SHOW BINLOG EVENTS [IN 'log_name'] [FROM pos] [LIMIT [offset,] row_count];
+egg: SHOW BINLOG EVENTS IN 'mysql-bin.000001' \G;
+
+2. 使用mysqlbinlog查看binlog
+# 提取指定的binlog日志  
+mysqlbinlog /var/lib/mysql/mysql-bin.000001
+mysqlbinlog /var/lib/mysql/mysql-bin.000001|grep insert
+
+# 提取指定position位置的binlog日志  
+mysqlbinlog --start-position="4" --stop-position="332" /var/lib/mysql/mysql-bin.000001
+
+# 提取指定position位置的binlog日志并输出到压缩文件  
+mysqlbinlog --start-position="120" --stop-position="332" /var/lib/mysql/mysql-bin.000001 | gzip > mysql-bin.000001.sql.gz
+
+# 提取指定position位置的binlog日志导入数据库  
+mysqlbinlog --start-position="120" --stop-position="332" /var/lib/mysql/mysql-bin.000001 | mysql -uroot -p
+
+# 提取指定开始时间的binlog并输出到日志文件  
+mysqlbinlog --start-datetime="2021-04-08 20:15:23" /var/lib/mysql/mysql-bin.000001 --result-file=extra02.sql
+
+# 提取指定位置的多个binlog日志文件  
+mysqlbinlog --start-position="120" --stop-position="332" /var/lib/mysql/mysql-bin.000001 /var/lib/mysql/mysql-bin.000002 | more
+
+# 提取指定数据库binlog并转换字符集到UTF8  
+mysqlbinlog --database=test --set-charset=utf8 /var/lib/mysql/mysql-bin.000001 /var/lib/mysql/mysql-bin.000002 > test.sql
+
+# 远程提取日志，指定结束时间   
+mysqlbinlog -uroot -p -h47.106.222.53 -P3306 --stop-datetime="2021-04-08 20:15:23" --read-from-remote-server /var/lib/mysql/mysql-bin.000001 | more
+
+# 远程提取使用row格式的binlog日志并输出到本地文件
+mysqlbinlog -uroot -p -P3606 -h47.106.222.53 --read-from-remote-server -vv /var/lib/mysql/mysql-bin.000001 > row.sql
+
+3.mysqlbinlog 查看row模式的binlog
+当bin-log的模式设置为row时（binlog_format=row），查看执行的sql时也稍微麻烦一点，默认解析出来的结果是完全看不懂，这时需要添加参数（--base64-output=decode-rows -v）对输出结果解码。
+
+mysqlbinlog  --base64-output=decode-rows -v /var/lib/mysql/mysql-bin.000001 | more
+```
+
+
 **redo log的写入机制**
 
 ![redo log存储状态](./images/redo log存储状态.png)
