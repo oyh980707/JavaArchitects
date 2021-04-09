@@ -4,7 +4,7 @@
 
 ---
 
-## information_schema
+## Information Schema
 
 CHARACTER_SETS：字符集表，提供了mysql实例可用字符集的信息。是SHOW CHARACTER SET结果集取之此表 
 CLIENT_STATISTICS： 表保存有关客户端连接的统计信息。这是用户统计特性的一部分，默认情况下不启用。 
@@ -68,3 +68,25 @@ INNODB_SYS_FOREIGN_COLS
 INNODB_BUFFER_PAGE_LRU
 INNODB_BUFFER_POOL_STATS
 INNODB_BUFFER_PAGE
+
+
+
+## Performance Schema
+
+cond_instances
+events_waits_current
+events_waits_history
+events_waits_history_long
+events_waits_summary_by_instance
+events_waits_summary_by_thread_by_event_name
+events_waits_summary_global_by_event_name
+file_instances
+file_summary_by_event_name
+file_summary_by_instance 
+mutex_instances 
+performance_timers
+rwlock_instances
+setup_consumers 
+setup_instruments 
+setup_timers
+threads
