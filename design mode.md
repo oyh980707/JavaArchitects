@@ -691,6 +691,18 @@ Delegate 结尾的一般都是委派，Dispatcher
 对于包含敏感词的内容，我们有两种处理方式，一种是直接禁止发布，另一种是给敏感词打马赛克（比如，用 *** 替换敏感词）之后再发布。第一种处理方式符合 GoF 给出的职责链模式的定义，第二种处理方式是职责链模式的变体。
 ```
 
+框架中的应用
+
+```text
+Filter、Spring Interceptor、Spring AOP
+
+Filter可以拿到原始的http请求，但是拿不到你请求的控制器和请求控制器中的方法的信息;
+Interceptor 可以拿到你请求的控制器和方法，却拿不到请求方法的参数;
+Aop 可以拿到方法的参数，但是却拿不到http请求和响应的对象;
+
+他们的细粒度不同，AOP的细粒度更细，为每个类做相关的功能增强，Interceptor的细粒度其次，Filter也差不多，只是Filter是存在web容器，和Spring无关，而Interceptor是Spring中的，和Spring容器的生命周期一致。
+```
+
 
 
 
