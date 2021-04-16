@@ -2440,9 +2440,37 @@ Nested Loop”字样。
 
 **join 优化**
 
+```text
+create table t1(id int primary key, a int, b int, index(a));
+create table t2 like t1;
+drop procedure idata;
+delimiter ;;
+create procedure idata()
+begin
+  declare i int;
+  set i=1;
+  while(i<=1000)do
+    insert into t1 values(i, 1001-i, i);
+    set i=i+1;
+  end while;
+  
+  set i=1;
+  while(i<=1000000)do
+    insert into t2 values(i, i, i);
+    set i=i+1;
+  end while;
+
+end;;
+delimiter ;
+call idata();
+
+Query OK, 1 row affected (7 hours 16 min 38.89 sec)
+```
+
 Multi-Range Read优化
 这个优化的主要目的是尽量使用顺序读盘。
 ![](./images/MRR执行流程.jpg)
+
 ```text
 如果随着a的值递增顺序查询的话，id的值就变成随机的，那么就会出现随机访问，性能相对较差。虽然“按行查”这个机制不能改，但是调整查询的顺序，还是能够加速的。
 因为大多数的数据都是按照主键递增顺序插入得到的，所以我们可以认为，如果按照主键的递增顺序查询的话，对磁盘的读比较接近顺序读，能够提升读性能。这就是MRR优化的设计思路。此时，语句的执行流程变成了这样：
@@ -2517,7 +2545,6 @@ select * from t1 join temp_t on (t1.b=temp_t.b);
 1. 执行insert语句构造temp_t表并插入数据的过程中，对表t2做了全表扫描，这里扫描行数是100万。
 2. 之后的join语句，扫描表t1，这里的扫描行数是1000；join比较过程中，做了1000次带索引的查询。相比于优化前的join语句需要做10亿次条件判断来说，这个优化效果还是很明显的。
 总体来看，不论是在原表上加索引，还是用有索引的临时表，思路都是让join语句能够用上被驱动表上的索引，来触发BKA算法，提升查询性能。
-
 ```
 
 扩展-hash join
