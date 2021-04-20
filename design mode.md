@@ -759,10 +759,33 @@ Java 迭代器中提供的 remove() 方法还是比较鸡肋的，作用有限�
 
 
 
+### 访问者模式(Visitor Design Pattern)
+
+Allows for one or more operation to be applied to a set of objects at runtime, decoupling the operations from the object structure.
+
+允许一个或者多个操作应用到一组对象上，解耦操作和对象本身。
+
+访问者模式针对的是一组类型不同的对象（PdfFile、PPTFile、WordFile）。不过，尽管这组对象的类型是不同的，但是，它们继承相同的父类（ResourceFile）或者实现相同的接口。在不同的应用场景下，需要对这组对象进行一系列不相关的业务操作（抽取文本、压缩等），但为了避免不断添加功能导致类（PdfFile、PPTFile、WordFile）不断膨胀，职责越来越不单一，以及避免频繁地添加功能导致的频繁代码修改，我们使用访问者模式，将对象与操作解耦，将这些业务操作抽离出来，定义在独立细分的访问者类（Extractor、Compressor）中。
+
+这个模式的代码实现比较难，所以应用场景并不多。 
 
 
 
+Double Dispatch
 
+理解“Dispatch”
+
+```text
+在面向对象编程语言中，我们可以把方法调用理解为 一种消息传递，也就是“Dispatch”。一个对象调用另一个对象的方法，就相当于给它发 送一条消息。这条消息起码要包含对象名、方法名、方法参数。
+```
+
+理解“Single”“Double”
+
+```text
+“Single”“Double”指的是执行哪个对象的哪个方法，跟几个因素的运行时类型有关。进一步解释。Single Dispatch 之所以称为“Single”，是因为执行哪个对象的哪个方法，只跟“对象”的运行时类型有关。Double Dispatch 之所以称为“Double”，是因为执行哪个对象的哪个方法，跟“对象”和“方法参数”两者的运行时类型有关。
+```
+
+Single Dispatch 和 Double Dispatch 跟多态和函数重载直接相关。当前主流的面向对象编程语言（比如，Java、C++、C#）都只支持 Single Dispatch，不支持 Double Dispatch。
 
 
 
