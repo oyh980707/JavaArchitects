@@ -3068,13 +3068,126 @@ mysql> select * from t;
 
 需要注意的是，执行这条语句的affected rows返回的是2，很容易造成误解。实际上，真正更新的只有一行，只是在代码实现上，insert和update都认为自己成功了，update计数加了1， insert计数也加了1。
 
+**复制表**
+SQL语句：
+```text
+create database db10;
+use db10;
+
+create table t(id int primary key, a int, b int, index(a)) engine=innodb;
+delimiter ;;
+  create procedure idata()
+  begin
+    declare i int;
+    set i=1;
+    while(i<=1000) do
+      insert into t values(i,i,i);
+      set i=i+1;
+    end while;
+  end;;
+delimiter ;
+call idata();
+
+create database db20;
+create table db20.t like db10.t
+```
+
+1. 逻辑复制
+- mysqldump方法
+```text
+使用mysqldump命令将数据导出成一组INSERT语句
+mysqldump -h localhost -P 3306 -u root --add-locks=0 --no-create-info --single-transaction  --set-gtid-purged=OFF db10 t --where="a>900" --result-file=G:/Desktop/t.sql
+参数介绍：
+–single-transaction的作用是，在导出数据的时候不需要对表db1.t加表锁，而是使用START TRANSACTION WITH CONSISTENT SNAPSHOT的方法；
+–add-locks 设置为0，表示在输出的文件结果里，不增加" LOCK TABLES t WRITE;" ；
+–no-create-info 的意思是，不需要导出表结构；
+–set-gtid-purged=off 表示的是，不输出跟GTID相关的信息；
+–result-file 指定了输出文件的路径，其中client表示生成的文件是在客户端机器上的。
+
+结果中是一条INSERT语句里面会包含多个value对，这是为了后续用这个文件来写入数据的时候，执行速度可以更快。
+
+如果希望生成的文件中一条INSERT语句只插入一行数据的话，可以在执行mysqldump命令时，加上参数–skip-extended-insert。
 
 
+然后将这些INSERT语句放到db2库里去执行：
+mysql -h 127.0.0.1 -P 3306  -uroot -p db20 -e "source G:/Desktop/t.sql"
+source并不是一条SQL语句，而是一个客户端命令。mysql客户端执行这个命令的流程：
+1. 打开文件，默认以分号为结尾读取一条条的SQL语句；
+2. 将SQL语句发送到服务端执行。
+服务端执行的并不是这个“source t.sql"语句，而是INSERT语句。所以，不论是在慢查询日志（slow log），还是在binlog，记录的都是这些要被真正执行的INSERT语句。
+```
+- 导出CSV文件
+```text
+MySQL提供了下面的语法，用来将查询结果导出到服务端本地目录：select * from db10.t where a>900 into outfile 'G:/Desktop/t.csv';
+需要注意如下几点:
+1. 这条语句会将结果保存在服务端。如果执行命令的客户端和MySQL服务端不在同一个机器上，客户端机器的临时目录下是不会生成t.csv文件的。
+2. into outfile指定了文件的生成位置（G:/Desktop/），这个位置必须受参数secure_file_priv的限制。参数secure_file_priv的可选值和作用分别是：
+    1）如果设置为empty，表示不限制文件生成的位置，这是不安全的设置；
+    2）如果设置为一个表示路径的字符串，就要求生成的文件只能放在这个指定的目录，或者它的子目录；
+    3）如果设置为NULL，就表示禁止在这个MySQL实例上执行select … into outfile 操作。
+    4）这条命令不会帮你覆盖文件，因此你需要确保G:/Desktop/t.csv这个文件不存在，否则执行语句时就会因为有同名文件的存在而报错。
 
+这条命令生成的文本文件中，原则上一个数据行对应文本文件的一行。但是，如果字段中包含换行符，在生成的文本中也会有换行符。不过类似换行符、制表符这类符号，前面都会跟上“\”这个转义符，这样就可以跟字段之间、数据行之间的分隔符区分开。得到.csv导出文件后，就可以用下面的load data命令将数据导入到目标表db20.t中。
+load data infile 'G:/Desktop/t.csv' into table db20.t;
+这条语句的执行流程如下所示。
+1. 打开文件G:/Desktop/t.csv，以制表符(\t)作为字段间的分隔符，以换行符（\n）作为记录之间的分隔符，进行数据读取；
+2. 启动事务。
+3. 判断每一行的字段数与表db2.t是否相同：
+    若不相同，则直接报错，事务回滚；
+    若相同，则构造成一行，调用InnoDB引擎接口，写入到表中。
+4. 重复步骤3，直到G:/Desktop/t.csv整个文件读入完成，提交事务。
 
+如果binlog_format=statement，这个load语句记录到binlog里以后，怎么在备库重放呢？
+由于G:/Desktopt.csv文件只保存在主库所在的主机上，如果只是把这条语句原文写到binlog中，在备库执行的时候，备库的本地机器上没有这个文件，就会导致主备同步停止。
+这条语句执行的完整流程，其实是下面这样的。
+1. 主库执行完成后，将G:/Desktop/t.csv文件的内容直接写到binlog文件中。
+2. 往binlog文件中写入语句load data local infile ‘/tmp/SQL_LOAD_MB-1-0’ INTO TABLE `db20`.`t`。
+3. 把这个binlog日志传到备库。
 
+备库的apply线程在执行这个事务日志时：
+a. 先将binlog中t.csv文件的内容读出来，写入到本地临时目录/tmp/SQL_LOAD_MB-1-0 中；
+b. 再执行load data语句，往备库的db20.t表中插入跟主库相同的数据。
 
+注意，这里备库执行的load data语句里面，多了一个“local”。它的意思是“将执行这条命令的客户端所在机器的本地文件/tmp/SQL_LOAD_MB-1-0的内容，加载到目标表db20.t中”。
+load data命令有两种用法：
+- 不加“local”，是读取服务端的文件，这个文件必须在secure_file_priv指定的目录或子目录下；
+- 加上“local”，读取的是客户端的文件，只要mysql客户端有访问这个文件的权限即可。这时候，MySQL客户端会先把本地文件传给服务端，然后执行上述的load data流程。
 
+另外需要注意的是，select …into outfile方法不会生成表结构文件, 所以我们导数据时还需要单独的命令得到表结构定义。mysqldump提供了一个–tab参数，可以同时导出表结构定义文件和csv数据文件。这条命令的使用方法如下：
+mysqldump -h$host -P$port -u$user ---single-transaction  --set-gtid-purged=OFF db10 t --where="a>900" --tab=$secure_file_priv
+这条命令会在$secure_file_priv定义的目录下，创建一个t.sql文件保存建表语句，同时创建一个t.txt文件保存CSV数据。
+```
+
+2. 物理复制
+```text
+直接把db10.t表的.frm文件和.ibd文件拷贝到db20目录下，是不可行的。因为，一个InnoDB表，除了包含这两个物理文件外，还需要在数据字典中注册。直接拷贝这两个文件的话，因为数据字典中没有db20.t这个表，系统是不会识别和接受它们的。
+在MySQL 5.6版本引入了可传输表空间(transportable tablespace)的方法，可以通过导出+导入表空间的方式，实现物理拷贝表的功能。
+
+假设我们现在的目标是在db10库下，复制一个跟表t相同的表r，具体的执行步骤如下：
+1. 执行 create table r like t，创建一个相同表结构的空表；
+2. 执行 alter table r discard tablespace，这时候r.ibd文件会被删除；
+3. 执行 flush table t for export，这时候db10目录下会生成一个t.cfg文件；
+4. 在db10目录下执行cp t.cfg r.cfg; cp t.ibd r.ibd；这两个命令（这里需要注意的是，拷贝得到的两个文件，MySQL进程要有读写权限）
+5. 执行unlock tables，这时候t.cfg文件会被删除；
+6. 执行alter table r import tablespace，将这个r.ibd文件作为表r的新的表空间，由于这个文件的数据内容和t.ibd是相同的，所以表r中就有了和表t相同的数据。
+
+关于拷贝表的这个流程，有以下几个注意点：
+1. 在第3步执行完flsuh table命令之后，db10.t整个表处于只读状态，直到执行unlock tables命令后才释放读锁；
+2. 在执行import tablespace的时候，为了让文件里的表空间id和数据字典中的一致，会修改r.ibd的表空间id。而这个表空间id存在于每一个数据页中。因此，如果是一个很大的文件（比如TB级别），每个数据页都需要修改，所以你会看到这个import语句的执行是需要一些时间的。当然，如果是相比于逻辑导入的方法，import语句的耗时是非常短的。
+```
+
+小结：
+```text
+对比一下这三种方法的优缺点。
+1. 物理拷贝的方式速度最快，尤其对于大表拷贝来说是最快的方法。如果出现误删表的情况，用备份恢复出误删之前的临时库，然后再把临时库中的表拷贝到生产库上，是恢复数据最快的方法。但是，这种方法的使用也有一定的局限性：
+    1)必须是全表拷贝，不能只拷贝部分数据；
+    2)需要到服务器上拷贝数据，在用户无法登录数据库主机的场景下无法使用；
+    3)由于是通过拷贝物理文件实现的，源表和目标表都是使用InnoDB引擎时才能使用。
+2. 用mysqldump生成包含INSERT语句文件的方法，可以在where参数增加过滤条件，来实现只导出部分数据。这个方式的不足之一是，不能使用join这种比较复杂的where条件写法。
+3. 用select … into outfile的方法是最灵活的，支持所有的SQL写法。但，这个方法的缺点之一就是，每次只能导出一张表的数据，而且表结构也需要另外的语句单独备份。
+
+后两种方式都是逻辑备份方式，是可以跨引擎使用的。
+```
 
 
 
