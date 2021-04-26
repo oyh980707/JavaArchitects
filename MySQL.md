@@ -2961,6 +2961,119 @@ mysql> select * from t2;
 insert…select，实际上往表t2中插入了4行数据。但是，这四行数据是分三次申请的自增id，第一次申请到了id=1，第二次被分配了id=2和id=3， 第三次被分配到id=4到id=7。由于这条语句实际只用上了4个id，所以id=5到id=7就被浪费掉了。之后，再执行insert into t2 values(null, 5,5)，实际上插入的数据就是（8,5,5)。这是主键id出现自增id不连续的第三种原因。
 ```
 
+**insert 循环写入**
+准备工作：
+```text
+CREATE TABLE `t` (
+`id` int(11) NOT NULL AUTO_INCREMENT,
+`c` int(11) DEFAULT NULL,
+`d` int(11) DEFAULT NULL,
+PRIMARY KEY (`id`),
+UNIQUE KEY `c` (`c`)
+) ENGINE=InnoDB;
+insert into t values(null, 1,1);
+insert into t values(null, 2,2);
+insert into t values(null, 3,3);
+insert into t values(null, 4,4);
+create table t2 like t
+```
+SQL分析：insert into t2(c,d) (select c+1, d from t force index(c) order by c desc limit 1);
+```text
+这个语句的加锁范围，就是表t索引c上的(3,4]和(4,supremum]这两个next-key lock，以及主键索引上id=4这一行。它的执行流程也比较简单，从表t中按照索引c倒序，扫描第一行，拿到结果写入到表t2中。因此整条语句的扫描行数是1。
+```
+SQL分析：insert into t(c,d) (select c+1, d from t force index(c) order by c desc limit 1);
+```text
+mysql> show status like '%Innodb_rows_read%';
++------------------+-------+
+| Variable_name    | Value |
++------------------+-------+
+| Innodb_rows_read | 12    |
++------------------+-------+
+1 row in set (0.00 sec)
+
+mysql> insert into t(c,d) (select c+1, d from t force index(c) order by c desc limit 1);
+Query OK, 1 row affected (0.09 sec)
+Records: 1  Duplicates: 0  Warnings: 0
+
+mysql> show status like '%Innodb_rows_read%';
++------------------+-------+
+| Variable_name    | Value |
++------------------+-------+
+| Innodb_rows_read | 16    |
++------------------+-------+
+
+这个语句执行前后，Innodb_rows_read的值增加了4。因为默认临时表是使用Memory引擎的，所以这4行查的都是表t，也就是说对表t做了全表扫描:
+1. 创建临时表，表里有两个字段c和d。
+2. 按照索引c扫描表t，依次取c=4、3、2、1，然后回表，读到c和d的值写入临时表。这时，Rows_examined=4。
+3. 由于语义里面有limit 1，所以只取了临时表的第一行，再插入到表t中。这时，Rows_examined的值加1，变成了5。
+这个语句会导致在表t上做全表扫描，并且会给索引c上的所有间隙都加上共享的nextkey lock。所以，这个语句执行期间，其他事务不能在这个表上插入数据。
+
+这个语句的执行为什么需要临时表，原因是这类一边遍历数据，一边更新数据的情况，如果读出来的数据直接写回原表，就可能在遍历过程中，读到刚刚插入的记录，新插入的记录如果参与计算逻辑，就跟语义不符。
+由于实现上这个语句没有在子查询中就直接使用limit 1，从而导致了这个语句的执行需要遍历整个表t。它的优化方法也比较简单，就是用前面介绍的方法，先insert into到临时表temp_t，这样就只需要扫描一行；然后再从表temp_t里面取出这行数据插入表t1。
+由于这个语句涉及的数据量很小，你可以考虑使用内存临时表来做这个优化。使用内存临时表优化时，语句序列的写法如下：
+create temporary table temp_t(c int,d int) engine=memory;
+insert into temp_t (select c+1, d from t force index(c) order by c desc limit 1);
+insert into t select * from temp_t;
+drop table temp_t;
+```
+
+**insert 唯一键冲突**
+分析SQL语句：
+```text
+sessino A                           session B
+insert into t values(10,10,10); 
+begin;
+insert into t values(11,10,10);
+ERROR 1062 (23000): Duplicate entry '10' for key 'c'
+                                    insert into t values(12,9,9);
+                                    // blocked
+这个例子也是在可重复读（repeatable read）隔离级别下执行的。session B要执行的insert语句进入了锁等待状态。session A执行的insert语句，发生唯一键冲突的时候，并不只是简单地报错返回，还在冲突的索引上加了锁。一个next-key lock就是由它右边界的值定义的。这时候，session A持有索引c上的(5,10]共享next-key lock（读锁）。
+
+```
+
+经典死锁场景：
+```text
+session A                           session B                       session C
+begin;
+insert into t values(null,5,5);
+Query OK, 1 row affected (0.00 sec)
+                                    insert into t values(null,5,5);
+                                    (blocked)
+                                                                    insert into t values(null,5,5);
+                                                                    (blocked)
+rollback;
+                                    Query OK, 1 row affected (44.96 sec)
+                                                                    ERROR 1213 (40001): Deadlock found when trying to get lock; try restarting transaction
+
+1. 启动session A，并执行insert语句，此时在索引c的c=5上加了记录锁。注意，这个索引是唯一索引，因此退化为记录锁
+2. session B要执行相同的insert语句，发现了唯一键冲突，加上读锁；同样地，session C也在索引c上，c=5这一个记录上，加了读锁。
+3. session A回滚。这时候，session B和session C都试图继续执行插入操作，都要加上写锁。两个session都要等待对方的行锁，所以就出现了死锁。(我未出现死锁，待测试)
+```
+
+语句：insert into … on duplicate key update
+上面死锁若使用语句：insert into t values(11,10,10) on duplicate key update d=100;  就会给索引c上(5,10] 加一个排他的next-key lock（写锁）。
+insert into …on duplicate key update 这个语义的逻辑是，插入一行数据，如果碰到唯一键约束，就执行后面的更新语句。
+注意，如果有多个列违反了唯一性约束，就会按照索引的顺序，修改跟第一个索引冲突的行。
+例如：
+现在表t里面已经有了(1,1,1)和(2,2,2)这两行，执行如下：
+mysql> insert into t values(2,1,100) on duplicate key update d=100;^C
+mysql> select * from t;
++----+------+------+
+| id | c    | d    |
++----+------+------+
+|  1 |    1 |    1 |
+|  2 |    2 |  100 |
++----+------+------+
+主键id是先判断的，MySQL认为这个语句跟id=2这一行冲突，所以修改的是id=2的行。
+
+需要注意的是，执行这条语句的affected rows返回的是2，很容易造成误解。实际上，真正更新的只有一行，只是在代码实现上，insert和update都认为自己成功了，update计数加了1， insert计数也加了1。
+
+
+
+
+
+
+
 
 
 
