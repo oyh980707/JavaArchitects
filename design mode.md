@@ -799,9 +799,13 @@ Captures and externalizes an object’s internal state so that it can be restore
 
 
 
+### 不可变模式(Immuta	ble Pattern)
 
+Immutable 模式，中文叫作不变模式，它并不属于经典的 23 种设计模式，但作为一种较常用的设计思路，可以总结为一种设计模式来学习。
 
+一个对象的状态在对象创建之后就不再改变，这就是所谓的不变模式。其中涉及的类就是不变类（Immutable Class），对象就是不变对象（Immutable Object）。在 Java 中，最常用的不变类就是 String 类，String 对象一旦创建之后就无法改变。 
 
+不变模式可以分为两类，一类是普通不变模式，另一类是深度不变模式（Deeply Immutable Pattern）。普通的不变模式指的是，对象中包含的引用对象是可以改变的。如果不特别说明，通常我们所说的不变模式，指的就是普通的不变模式。深度不变模式指的是，对象包含的引用对象也不可变。它们两个之间的关系，有点类似之前讲过的浅拷贝和深拷贝之间的关系。 
 
 ## 总结
 
