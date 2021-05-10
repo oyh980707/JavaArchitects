@@ -1592,7 +1592,6 @@ binlog也可以组提交了。在执行图5中第4步把binlog fsync到磁盘时
 4. 备库拿到binlog后，写到本地文件，称为中转日志（relay log）。
 5. sql_thread读取中转日志，解析出日志里的命令，并执行。
 
-
 **binlog的三种格式对比**
 
 - statement
@@ -2068,6 +2067,7 @@ insert into t values(0,0,0),(5,5,5),(10,10,10),(15,15,15),(20,20,20),(25,25,25);
 分析语句：select * from t where id>9 and id<12 order by id desc for update;
 得到的加锁范围为 (0,5],(5,10],(10,15) 加锁单位是next-key lock，都是前开后闭区间，但是这里用到了优化2，即索引上的等值查询，向右遍历的时候id=15不满足条件，所以next-key lock退化为了间隙锁 (10, 15)。
 分析此过程：
+
 1. 首先这个查询语句的语义是order by id desc，要拿到满足条件的所有行，优化器必须先找到“第一个id<12的值”。
 2. 这个过程是通过索引树的搜索过程得到的，在引擎内部其实是要找到id=12的这个值，但只是最终没找到，找到了(10,15)这个间隙。
 3. 然后向左遍历，在遍历过程中，就不是等值查询了，会扫描到id=5这一行，所以会加一个next-key lock (0,5]。
@@ -3353,10 +3353,62 @@ T2                                                              mysql -utest -p
 ![](./images/grant权限总结.png)
 
 
+**分区表**
 
+创建分区表：
+```text
+CREATE TABLE `t` (
+  `ftime` datetime NOT NULL,
+  `c` int(11) DEFAULT NULL,
+  KEY (`ftime`)
+) ENGINE=InnoDB DEFAULT CHARSET=latin1
+PARTITION BY RANGE (YEAR(ftime))
+(PARTITION p_2017 VALUES LESS THAN (2017) ENGINE = InnoDB,
+ PARTITION p_2018 VALUES LESS THAN (2018) ENGINE = InnoDB,
+ PARTITION p_2019 VALUES LESS THAN (2019) ENGINE = InnoDB,
+PARTITION p_others VALUES LESS THAN MAXVALUE ENGINE = InnoDB);
+insert into t values('2017-4-1',1),('2018-4-1',1);
 
+会产生5个文件：t.frm、t#p#p_2018.ibd、t#p#p_2019.ibd、t#p#p_2017.ibd、t#p#p_others.ibd
 
+对于引擎层来说，这是4个表
+对于Server层来说，这是1个表。
+```
+手动分表和分区表的区别
+```text
+按照年份来划分，分别创建普通表t_2017、t_2018、t_2019等等。手工分表的逻辑，也是找到需要更新的所有分表，然后依次执行更新。在性能上，这和分区表并没有实质的差别。
 
+分区表和手工分表，一个是由server层来决定使用哪个分区，一个是由应用层代码来决定使用哪个分表。因此，从引擎层看，这两种方式也是没有差别的。
 
+其实这两个方案的区别，主要是在server层上。从server层看，我们就不得不提到分区表一个被广为诟病的问题：打开表的行为。
+```
 
+分区策略
+```text
+每当第一次访问一个分区表的时候，MySQL需要把所有的分区都访问一遍。一个典型的报错情况：如果一个分区表的分区很多，比如超过了1000个，而MySQL启动的时候，open_files_limit参数使用的是默认值1024，此时的innodb_open_files是大于open_files_limit的值，那么就会在访问这个表的时候，由于需要打开所有的文件，导致打开表文件的个数超过了上限而报错(对老版本和MYISAM存储引擎来说)。innodb_open_files表示的是打开文件数超过这个值就会关闭一些文件。
 
+MyISAM分区表使用的分区策略，称为通用分区策略（generic partitioning），每次访问分区都由server层控制。通用分区策略，是MySQL一开始支持分区表的时候就存在的代码，在文件管理、表管理的实现上很粗糙，因此有比较严重的性能问题。
+从MySQL 5.7.9开始，InnoDB引擎引入了本地分区策略（native partitioning）。这个策略是在InnoDB内部自己管理打开分区的行为。
+MySQL从5.7.17开始，将MyISAM分区表标记为即将弃用(deprecated)，意思是“从这个版本开始不建议这么使用，请使用替代方案。在将来的版本中会废弃这个功能”。
+从MySQL 8.0版本开始，就不允许创建MyISAM分区表了，只允许创建已经实现了本地分区策略的引擎。目前来看，只有InnoDB和NDB这两个引擎支持了本地分区策略。
+```
+
+MySQL在第一次打开分区表的时候，需要访问所有的分区；
+在server层，认为这是同一张表，因此所有分区共用同一个MDL锁；
+在引擎层，认为这是不同的表，因此MDL锁之后的执行过程，会根据分区表规则，只访问必要的分区。
+
+分区表的应用场景
+```text
+分区表的一个显而易见的优势是对业务透明，相对于用户分表来说，使用分区表的业务代码更简洁。还有，分区表可以很方便的清理历史数据。
+如果一项业务跑的时间足够长，往往就会有根据时间删除历史数据的需求。这时候，按照时间分区的分区表，就可以直接通过alter table t drop partition …这个语法删掉分区，从而删掉过期的历史数据。
+这个alter table t drop partition …操作是直接删除分区文件，效果跟drop普通表类似。与使用delete语句删除数据相比，优势是速度快、对系统影响小。
+
+zabbix历史数据表的改造,利用存储过程创建和改造
+
+后台数据的分析汇总,比如日志数据,便于清理
+
+分区表需要注意的几点
+1 由于分区表都很大,DDL耗时是非常严重的,必须考虑这个问题
+2 分区表不能建立太多的分区,我曾被分享一个因为分区表分区过多导致的主从延迟问题
+3 分区表的规则和分区需要预先设置好,否则后来进行修改也很麻烦
+```
