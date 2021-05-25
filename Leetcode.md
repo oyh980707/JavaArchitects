@@ -334,11 +334,58 @@ inStack outStack
 6. 循环结束，返回结果
 ```
 
+## Z字形变换
 
+#### [6. Z 字形变换](https://leetcode-cn.com/problems/zigzag-conversion/)
 
+我采用的方式是：按行排序（按字符串字符访问）
 
+```text
+依次访问字符串的每个字符，找到字符对应的行，添加进去，最后将所有的行进行汇总。具体的方案图如下：
+```
 
+![](./images/Z字形变换-按行排序.png)
 
+方法2：按行访问
+
+```text
+首先访问 行0中的所有字符，接着访问行1，然后行2，依此类推...
+对于所有整数索引i，k行
+行1中的字符位于 i*2(numRows-1)
+行numRows中的字符位于 i*2(numRows-1)+numRows-1
+
+中间行 k 中的字符位于 i*2(numRows-1) + k-1 以及 (i+1)*2(numRows-1) - (k-1)
+
+我的实现代码如下：
+
+public String convert(String s, int numRows) {
+    if(numRows == 1) return s;
+    StringBuilder sb = new StringBuilder();
+
+    for(int k=1;k<=numRows;k++){
+        for(int i=0;i<s.length();i++){
+            if(k == 1){
+                if((i%(2*(numRows-1))) == 0){
+                sb.append(s.charAt(i));
+                }
+            }
+
+            if(k == numRows){
+                if(i%(2*(numRows-1)) == numRows-1){
+                sb.append(s.charAt(i));
+                }
+            }
+
+            if(k>1 && k<numRows && (i%(2*(numRows-1)) == k-1 
+            			|| i%(2*(numRows-1)) == 2*(numRows-1)-(k-1))){
+            sb.append(s.charAt(i));
+            }
+        }
+    }
+
+    return sb.toString();
+}
+```
 
 
 
