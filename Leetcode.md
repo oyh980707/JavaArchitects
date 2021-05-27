@@ -336,7 +336,7 @@ inStack outStack
 
 ## Z字形变换
 
-#### [6. Z 字形变换](https://leetcode-cn.com/problems/zigzag-conversion/)
+[6. Z 字形变换](https://leetcode-cn.com/problems/zigzag-conversion/)
 
 我采用的方式是：按行排序（按字符串字符访问）
 
@@ -385,6 +385,66 @@ public String convert(String s, int numRows) {
 
     return sb.toString();
 }
+```
+
+## 全排列
+
+[46. 全排列](https://leetcode-cn.com/problems/permutations/)
+
+我采用的是回朔法，回朔法有两种实现思路
+
+```text
+第一种方式：回朔函数参数有：以选中的数列，所有参与全排列数集合，结果集，将要处理什么位置的排列数
+每次回朔都会判断是否存在选中的数列中，不存在则添加，然后递归调用，处理下一个位置。
+
+public List<List<Integer>> permute(int[] nums) {
+    List<Integer> selectableNums = new ArrayList<>();
+    for(int num : nums){
+    	selectableNums.add(num);
+    }
+    List<List<Integer>> res = new ArrayList<>();
+    backtrack(new ArrayList<>(), selectableNums, res, 0);
+    return res;
+    }
+
+public void backtrack(List<Integer> selectNums, List<Integer> selectableNums, List<List<Integer>> res, int n){
+    if(selectableNums.size() == n){
+        res.add(new ArrayList<Integer>(selectNums));
+        return ;
+    }
+
+    for(int i=0;i<selectableNums.size();i++){
+        if(selectNums.contains(selectableNums.get(i))) continue;
+        selectNums.add(selectableNums.get(i));
+        backtrack(selectNums, selectableNums, res, n+1);
+        selectNums.remove(selectableNums.get(i));
+    }
+}
+
+另一种实现就是，将选中的数列和将要选的数放一个数组内，只是采用交换位置数来处理。
+public List<List<Integer>> permute(int[] nums) {
+    List<Integer> selectableNums = new ArrayList<>();
+    for(int num : nums){
+    	selectableNums.add(num);
+    }
+    List<List<Integer>> res = new ArrayList<>();
+    backtrack(selectableNums.size(), selectableNums, res, 0);
+    return res;
+}
+
+public void backtrack(int len, List<Integer> selectableNums, List<List<Integer>> res, int n){
+    if(n == len){
+        res.add(new ArrayList<Integer>(selectableNums));
+        return ;
+    }
+
+    for(int i=n;i<len;i++){
+        Collections.swap(selectableNums, i, n);
+        backtrack(len, selectableNums, res, n+1);
+        Collections.swap(selectableNums, n, i);
+    }
+}
+
 ```
 
 
