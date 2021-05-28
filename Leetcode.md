@@ -387,7 +387,7 @@ public String convert(String s, int numRows) {
 }
 ```
 
-## 全排列
+## 排列
 
 [46. 全排列](https://leetcode-cn.com/problems/permutations/)
 
@@ -447,7 +447,49 @@ public void backtrack(int len, List<Integer> selectableNums, List<List<Integer>>
 
 ```
 
+[31. 下一个排列](https://leetcode-cn.com/problems/next-permutation/)
 
+```text
+对于一个数组，找到此时对应的下一个排列的最小
+首先需要从右到左找到一个较小的数，和最右边其他最小的而且比该数大的数交换，交换后右边的排序成最小数列即可
+
+public void nextPermutation(int[] nums){
+    int i = nums.length-2;
+    // 找到最右边数序列中较小的一个，第一个满足nums[i]<nums[i+1]
+    while(i >= 0 && nums[i]>=nums[i+1]){
+    	i--;
+	}
+	// 若没有说明是最大值，直接反转
+    if(i<0){
+        reverse(nums, 0, nums.length-1);
+        return ;
+    }
+    // 找到较小的那个数，找到比这个数小的最大数
+    int j = nums.length-1;
+    while(j>=i && nums[j]<=nums[i]){
+    	j--;
+    }
+    // 交换
+    swap(nums,i,j);
+	// 反转
+    reverse(nums, i+1, nums.length-1);
+}
+private void swap(int[] nums, int var1, int var2){
+    nums[var1] = nums[var1]+nums[var2];
+    nums[var2] = nums[var1]-nums[var2];
+    nums[var1] = nums[var1]-nums[var2];
+}
+
+private void reverse(int[] nums, int begin, int end){
+    while(begin < end){
+        swap(nums,begin,end);
+        begin++;
+        end--;
+    }
+}
+
+
+```
 
 
 
