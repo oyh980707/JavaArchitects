@@ -491,7 +491,41 @@ private void reverse(int[] nums, int begin, int end){
 
 ```
 
+[47. 全排列 II](https://leetcode-cn.com/problems/permutations-ii/)
 
+```text
+思路和全排列一致，方法为回朔+剪枝
+
+    public List<List<Integer>> permuteUnique(int[] nums) {
+        List<List<Integer>> res = new ArrayList<>();
+        List<Integer> selectNums = new ArrayList<>();
+        for(int num : nums){
+            selectNums.add(num);
+        }
+        backtrack(nums.length, selectNums, res, 0);
+        return res;
+    }
+
+    public void backtrack(int n,List<Integer> selectNums, List<List<Integer>> res, int index){
+        if(index == n){
+            res.add(new ArrayList<>(selectNums));
+            return;
+        }
+        // 保存这次该位置可以放置的数，要求不重复
+        Set<Integer> set = new HashSet<>();
+        set.add(selectNums.get(index));
+        for(int i=index;i<n;i++){
+        	// 该位置原来的值不检查，检查后面需要放置该位置的数是否重复
+            if(i!=index && set.contains(selectNums.get(i))){
+                continue;
+            }
+            set.add(selectNums.get(i));
+            Collections.swap(selectNums, i, index);
+            backtrack(n, selectNums, res, index+1);
+            Collections.swap(selectNums, index, i);
+        }
+    }
+```
 
 
 
