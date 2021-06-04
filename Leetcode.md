@@ -527,7 +527,21 @@ private void reverse(int[] nums, int begin, int end){
     }
 ```
 
+## 三数问题
 
+[15. 三数之和](https://leetcode-cn.com/problems/3sum/)
+
+```text
+1. 暴力，枚举每种情况
+2. 排序+双指针法：排序后最外层循环遍历每个不重复的数，内层使用两个指针指向下一个数和最后一个数，依次逼近target数，判断没有提前结束。双指针移动也需要判断是否重复，跳过重复数据。
+```
+
+[16. 最接近的三数之和](https://leetcode-cn.com/problems/3sum-closest/)
+
+```text
+1. 暴力，枚举每种情况，排序后三层循环
+2. 排序+双指针法：与三数之和类似，只需要加几个变量记录组接近的数即可。
+```
 
 
 
