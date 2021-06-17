@@ -543,7 +543,45 @@ private void reverse(int[] nums, int begin, int end){
 2. 排序+双指针法：与三数之和类似，只需要加几个变量记录组接近的数即可。
 ```
 
+## LRU
 
+[146. LRU 缓存机制](https://leetcode-cn.com/problems/lru-cache/)
+
+实现的方式有两种
+
+1. 通过类继承LinkedHashMap实现，由于LinkedHashMap是链表形式的HashMap，满足实现LRU的条件。将访问顺序accessOrder设置为true，意思是每次访问之后都会将该节点放到尾结点去。
+
+```java
+class LRUCache extends LinkedHashMap<Integer, Integer>{
+    private int capacity;
+    
+    public LRUCache(int capacity) {
+        super(capacity, 0.75F, true);
+        this.capacity = capacity;
+    }
+
+    public int get(int key) {
+        return super.getOrDefault(key, -1);
+    }
+
+    public void put(int key, int value) {
+        super.put(key, value);
+    }
+
+    // 在每次插入一个节点后，需要处理插入后的操作，也就是当前判断是否删除最老的节点，也就是头结点，最新被访问的节点位于尾结点，每次访问都会
+    // 将访问的节点放置于最后的节点，设置该操作的值为accessOrder=true;
+    @Override
+    protected boolean removeEldestEntry(Map.Entry<Integer, Integer> eldest) {
+        return size() > capacity; 
+    }
+}
+```
+
+2. 通过参考类似于LinkedHashMap的实现原理，自己实现一个类保存每个节点，然后借助HashMap的快速检索来保存key对应的节点
+
+```java
+具体实现原理参考HashMap底层原理
+```
 
 
 
