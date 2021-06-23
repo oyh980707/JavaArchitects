@@ -527,11 +527,11 @@ private void reverse(int[] nums, int begin, int end){
     }
 ```
 ## 组合
- 
+
  [77. 组合](https://leetcode-cn.com/problems/combinations/)
- 
+
  1. 递归+剪枝
- 
+
  ```text
       public void dfs(int cur, int n, int k) {
         // 剪枝：temp 长度加上区间 [cur, n] 的长度小于 k，不可能构造出长度为 k 的 temp
@@ -551,9 +551,9 @@ private void reverse(int[] nums, int begin, int end){
         dfs(cur 1, n, k);
     }
  ```
- 
+
  2. 字典序法
- 
+
  ```text
  二进制列举法：
  二进制数              方案
@@ -602,7 +602,7 @@ class Solution {
       return ans;
   }
 }
-```
+ ```
 
 ```text
 思路和全排列一致，方法为回朔+剪枝
@@ -692,6 +692,37 @@ class LRUCache extends LinkedHashMap<Integer, Integer>{
 ```java
 具体实现原理参考HashMap底层原理
 ```
+
+
+
+## 最长公共子序列
+
+[1143. 最长公共子序列](https://leetcode-cn.com/problems/longest-common-subsequence/)
+
+本题解法最简单的是使用动态规划的方法解决：
+
+```text
+给定两个字符串text1和text2，返回这两个字符串的最长公共子序列的长度。
+假设字符串text1的长度为m，text2的长度为n，则要维护一个dp[m+1][n+1]的二维数组，dp[i][j]表示的含义是：text1前i个字符的字符串和text2前i个字符的字符串的最长公共子序列。
+
+边界考虑，当i或者j等于0时最长公共子序列都为零
+
+当i>0且j>0时：
+考虑dp[i][j]的计算
+当text1的第i个字符和text2的第j个字符一样时：dp[i][j]=dp[i-1][j-1] + 1
+当text1的第i个字符和text2的第j个字符不一样时：dp[i][j]=Math.max(dp[i-1][j-1], dp[i-1][j-1]);
+最后返回dp[m][n]即可
+```
+
+
+
+
+
+
+
+
+
+
 
 
 
