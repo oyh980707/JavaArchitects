@@ -714,7 +714,80 @@ class LRUCache extends LinkedHashMap<Integer, Integer>{
 最后返回dp[m][n]即可
 ```
 
+反转没对括号间的子串
 
+[1190. 反转每对括号间的子串](https://leetcode-cn.com/problems/reverse-substrings-between-each-pair-of-parentheses/)
+
+1. 我开始采用递归的方式实现，思路明确，可能代码能力差了点，所以未能实现
+
+```text
+思路是每次遇到左括号就递归处理子串，最终返回一个反转的子串
+```
+
+2. 采用栈的方式实现，思路简单明确
+
+```java
+class Solution {
+    public String reverseParentheses(String s) {
+        Stack<String> stack = new Stack<>();
+
+        StringBuilder sb = new StringBuilder();
+        for(int i=0;i<s.length();i++){
+            char c = s.charAt(i);
+            // 每当遇到"("时，将当前 前面添加的字符push进栈，然后清空sb
+            if('(' == c){
+                stack.push(sb.toString());
+                sb.setLength(0);
+            // 每当遇到")"时，就需要将字符反转，然后将前一次的栈的内容pop 添加到sb的头部
+            }else if(')' == c) {
+                sb.reverse();
+                sb.insert(0, stack.pop());
+            }else {
+                sb.append(c);
+            }
+        }
+        return sb.toString();
+    }
+}
+```
+
+3. 预处理括号
+
+```java
+public String reverseParentheses(String s) {
+    int n = s.length();
+    int[] pair = new int[n];
+    
+    // 先保存没对括号的对应位置
+    Stack<Integer> stack = new Stack<>();
+    for(int i=0;i<n;i++){
+        if(s.charAt(i) == '(') {
+            stack.push(i);
+        }
+        else if(s.charAt(i) == ')') {
+            int j = stack.pop();
+            pair[i] = j;
+            pair[j] = i;
+        }
+    }
+    
+    // 
+    int i = 0;
+    int step = 1;
+    StringBuilder sb = new StringBuilder();
+    while(i<n) {
+        if(s.charAt(i) == '(' || s.charAt(i) == ')') {
+            i = pair[i];
+            step = -step;
+        }
+        else {
+            sb.append(s.charAt(i));
+        }
+        i += step;
+    }
+    return sb.toString();
+}
+```
 
 
 
