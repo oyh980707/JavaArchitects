@@ -1,0 +1,564 @@
+# JVM
+
+
+
+## tomcat需要破坏双亲委派模型的原因
+
+(1)tomcat中的需要支持不同web应用依赖同一个第三方类库的不同版本，jar类库需要保证相互隔离;
+
+(2)同一个第三方类库的相同版本在不同web应用可以共享
+
+(3)tomcat自身依赖的类库需要与应用依赖的类库隔离
+
+(4)jsp需要支持修改后不用重启tomcat即可生效 为了上面类加载隔离 和类更新不用重启，定制开发各种的类加载器
+
+## 垃圾回收算法
+
+复制算法：新生代内存划分为两块内存区域，然后只使用其中一块内存。内存使用率极低
+
+复制算法的优化：Eden区和Survivor区，1个Eden区，2个Survivor区，其中Eden区占80%内存空间，每一块Survivor区各占10%内存空间，Eden区和其中一块Survivor区，那么相当于就是有900MB的内存是可以使用的
+
+标记整理算法：首先标记出来老年代当前存活的对象，这些对象可能是东一个西一个的。接着会让这些存活对象在内存里进行移动，把存活对象尽量都挪动到一边去，让存活对象紧凑的靠在一起，避免垃圾回收过后出现过多的内存碎片。老年代的垃圾回收算法的速度至少比新生代的垃圾回收算法的速度慢10倍。
+
+
+
+1. 躲过15次GC之后进入老年代，具体是多少岁进入老年代，可以通过JVM参数“-XX:MaxTenuringThreshold”来设置，默认是15岁。
+2. 动态对象年龄判断，假如说当前放对象的Survivor区域里，一批对象的总大小大于了这块Survivor区域的内存大小的50%，那么此时大于等于这批对象年龄的对象，就可以直接进入老年代了。
+3. 大对象直接进入老年代，“-XX:PretenureSizeThreshold”，设置为字节数，如果你要创建一个大于这个大小的对象，比如一个超大的数组，此时就直接把这个大对象放到老年代里去。压根儿不会经过新生代。之所以这么做，就是要避免新生代里出现那种大对象，然后屡次躲过GC，还得把他在两个Survivor区域里来回复制多次之后才能进入 老年代，
+
+当Eden区存活对象没办法放入Survivor区中，这个时候就必须得把这些对象直接转移到老年代去，如果老年代里空间也不够放这些对象？
+
+```text
+1. 首先，在执行任何一次Minor GC之前，JVM会先检查一下老年代可用的可用内存空间，是否大于新生代所有对象的总大小。如果说发现老年代的内存大小是大于新生代所有对象的，此时就可以放心大胆的对新生代发起一次Minor GC了，因为即使Minor GC之 后所有对象都存活，Survivor区放不下了，也可以转移到老年代去。
+万一老年代空间不够会继续尝试进行下一步判断，就是看看老年代的内存大小，是否大于之前每一次Minor GC后进入老年代的对象的平均大小。
+
+如果上面那个步骤判断失败了，或者是“-XX:-HandlePromotionFailure”参数没设置，此时就会直接触发一次“Full GC”，就是对老年代进行垃圾回收，尽量腾出来一些内存空间，然后再执行Minor GC。
+如果上面两个步骤都判断成功了，那么就是说可以冒点风险尝试一下Minor GC。此时进行Minor GC有几种可能。
+
+第一种可能，Minor GC过后，剩余的存活对象的大小，是小于Survivor区的大小的，那么此时存活对象进入Survivor 区域即可。
+第二种可能，Minor GC过后，剩余的存活对象的大小，是大于 Survivor区域的大小，但是是小于老年代可用内存大小的，此时就直接进入老年代即可。
+第三种可能，很不幸，Minor GC过后，剩余的存活对象的大小，大于了Survivor区域的大小，也大于了老年代可用内存的大小。此时老年代都放不下这些存活对象了，就会发生“Handle Promotion Failure”的情况，这个时候就会触 发一次“Full GC”。
+Full GC就是对老年代进行垃圾回收，同时也一般会对新生代进行垃圾回收。
+如果要是Full GC过后，老年代还是没有足够的空间存放Minor GC过后的剩余存活对象，那么此时就会导致所谓的 “OOM”内存溢出了
+
+
+注：
+	“-XX:HandlePromotionFailure”参数在JDK 1.6以后就被废弃了，所以现在一般都不会在生产环境里设置这个参数了。在JDK 1.6以后，只要判断“老年代可用空间”> “新生代对象总和”，或者“老年代可用空间”> “历次Minor GC升入老年代对象的平均大小”，两个条件满足一个，就可以直接进行Minor GC，不需要提前触发Full GC了。
+	例：jdk<=6
+		“-Xms3072M -Xmx3072M -Xmn1536M -Xss1M -XX:PermSize=256M -XX:MaxPermSize=256M - XX:HandlePromotionFailure”
+	jdk>=7
+		“-Xms3072M -Xmx3072M -Xmn1536M -Xss1M -XX:PermSize=256M -XX:MaxPermSize=256M”
+```
+
+## Stop the World
+
+因为在垃圾回收的时候，尽可能要让垃圾回收器专心致志的干工作，不能随便让我们写的Java系统继续对象了，所以此时JVM会在后台 直接进入“Stop the World”状态。
+
+垃圾回收器：
+
+- Serial垃圾回收器就是用一个线程进行垃圾回收，然后此时暂停系统工作线程，所以一般我们在服务器程序中很 少用这种方式。
+
+- ParNew垃圾回收器，他针对服务器一般都是多核CPU做了优化，他是支持多线程个垃圾回收的，可以大 幅度提升回收的性能，缩短回收的时间
+- CMS垃圾回收器，专门负责老年代的垃圾回收，他也有自己特殊的一套机制和原理，非常的复杂
+- G1垃圾回收器，他更是将采用复杂的回收机制将回收性能优化到机制，尽可 能更多的降低“Stop the World”的时间。
+
+
+
+## CMS垃圾回收器的问题
+
+1. CMS垃圾回收器有一个最大的问题，虽然能在垃圾回收的同时让系统同时工作，但是在并发标记和并发清理两个最耗时 的阶段，垃圾回收线程和系统工作线程同时工作，会导致有限的CPU资源被垃圾回收线程占用了一部分。因为老年代里存活对象是比较多的，这个过程会追踪大量的对象，所以耗时较高。并发清理，又需要把垃圾对象从各种随机的内存位置清理掉，也是比较耗时的。所以在这两个阶段，CMS的垃圾回收线程是比较耗费CPU资源的。CMS默认启动的垃圾回收线程的数量是(CPU核数 + 3)/ 4。
+
+2. Concurrent Mode Failure问题。在并发清理阶段，CMS只不过是回收之前标记好的垃圾对象，但是这个阶段系统一直在运行，可能会随着系统运行让一些对象进入老年代，同时还变成垃圾对象，这种垃圾对象是“**浮动垃圾**”。所以为了保证在CMS垃圾回收期间，还有一定的内存空间让一些对象可以进入老年代，一般会预留一些空间。CMS垃圾回收的触发时机，其中有一个就是当老年代内存占用达到一定比例了，就自动执行GC。“-XX:CMSInitiatingOccupancyFaction”参数可以用来设置老年代占用多少比例的时候触发CMS垃圾回收，JDK 1.6里面默认的值是 92%。也就是说，老年代占用了92%空间了，就自动进行CMS垃圾回收，预留8%的空间给并发回收期间，系统程序把一些新对象放入老年代 中。那么如果CMS垃圾回收期间，系统程序要放入老年代的对象大于了可用内存空间，这个时候，会发生Concurrent Mode Failure，就是说并发垃圾回收失败了，此时就会自动用“Serial Old”垃圾回收器替代CMS，就是直接强行把系统程序“Stop the World”，重新进行长时间的GC Roots追踪，标记出来全部垃圾对象，不允许新的对象产生，然后一次性把垃圾对象都回收掉，完事儿了再恢复系统线程。
+3. 内存碎片问题，CMS不是完全就仅仅用“标记-清理”算法的，因为太多的内存碎片实际上会导致更加频繁的Full GC。CMS有一个参数是“-XX:+UseCMSCompactAtFullCollection”，默认就打开了，意思是在Full GC之后要再次进行“Stop the World”，停止工作线程，然后进行碎片整理，就是把存活对象挪到一起，空出来大片连续内存空间，避免内存碎片。还有一个参数是“-XX:CMSFullGCsBeforeCompaction”，这个意思是执行多少次Full GC之后再执行一次内存碎片整理的工作，默认是0，意思就是每次Full GC之后都会进行一次内存整理。
+
+新生代执行速度其实很快，因为直接从GC Roots出发就追踪哪些对象是活的就行了，新生代存活对象是很少的，这个速度是极快的， 不需要追踪多少对象。然后直接把存活对象放入Survivor中，就一次性直接回收Eden和之前使用的Survivor了。
+但是CMS的Full GC在并发标记阶段，他需要去追踪所有存活对象，老年代存活对象很多，这个过程就会很慢，其次并发清理阶段，他不是一次性回收一大片内存，而是找到零零散散在各个地方的垃圾对象，速度也很慢，最后还得执行一次内存碎片整理，把大量的存活对象给挪在一起，空出来连续内存空间，这个过程还得“Stop the World”，那就更慢了。万一并发清理期间，剩余内存空间不足以存放要进入老年代的对象了，引发了“Concurrent Mode Failure”问题，还得立马用“Serial Old”垃圾回收器，“Stop the World”之后慢慢重新来一遍回收的过程，这更是耗时了。
+
+
+
+```text
+分析：“-Xms3072M -Xmx3072M -Xmn2048M -Xss1M -XX:PermSize=256M -XX:MaxPermSize=256M - XX:SurvivorRatio=8 -XX:MaxTenuringThreshold=5 -XX:PretenureSizeThreshold=1M -XX:+UseParNewGC - XX:+UseConcMarkSweepGC -XX:CMSInitiatingOccupancyFaction=92 -XX:+UseCMSCompactAtFullCollection -XX:CMSFullGCsBeforeCompaction=0”
+
+对于电商系统，很多都是临时的对象，1秒钟就成了垃圾需要被回收，所以新生代尽量大，Survivor尽量的大，避免Minor GC后剩余对象Survivor放不下，而且尽量不要因为动态年龄判定而导致临时对象进入老年代，最大年龄也尽量的小，因为大部分都是临时性的对象，极少数也避免长期呆在新生代占用内存，大对象也直接进入老年代，新生代采用ParNew垃圾回收器，老年代采用CMS垃圾回收器
+```
+
+
+
+## G1垃圾回收器
+
+G1垃圾回收器是可以同时回收新生代和老年代的对象的，不需要两个垃圾回收器配合起来运作。他最大的一个特点，就是把Java堆内存拆分为多个大小相等的Region。G1另一个最大的一个特点，就是可以让我们设置一个垃圾回收的预期停顿时间，需要做到预期停顿时间可控，他就必须要追踪每个Region里的回收价值，他必须搞清楚每个Region里的对象有多少是垃圾，如果对这个Region进行垃圾回收，需要耗费多长时间。所以简单来说，G1可以做到让你来设定垃圾回收对系统的影响，他自己通过把内存拆分为大量小Region，以及追踪每个Region中可以 回收的对象大小和预估时间，最后在垃圾回收的时候，尽量把垃圾回收对系统造成的影响控制在你指定的时间范围内，同时在有限的时 间内尽量回收尽可能多的垃圾对象。Region可能属于新生代也可能属于老年代
+
+**如何设定G1对应的内存大小**
+
+默认情况下自动计算和设置的，JVM启动的时候一旦发现你使用的是G1垃圾回收器，可以使用“-XX:+UseG1GC”来指定使用G1垃圾回收器，此时会自动用堆大小除以2048，JVM最多可以有2048个Region，如果通过手动方式来指定，则是“-XX:G1HeapRegionSize”，比如说堆大小是4G，那么就是4096MB，此时除以2048个Region，每个Region的大小就是2MB。大概就是这样子来决定Region的数 量和大小的，大家一般保持默认的计算方式就可以。刚开始的时候，默认新生代对堆内存的占比是5%，也就是占据200MB左右的内存，对应大概是100个Region，这个是可以通过“- XX:G1NewSizePercent”来设置新生代初始占比的，其实维持这个默认值即可。因为在系统运行中，JVM其实会不停的给新生代增加更多的Region，但是最多新生代的占比不会超过60%，可以通过“- XX:G1MaxNewSizePercent”。而且一旦Region进行了垃圾回收，此时新生代的Region数量还会减少，这些其实都是动态的。
+
+-XX:SurvivorRatio=8”，可以区分出来属于新生代的Region里哪些属于Eden，哪些属于Survivor。比如新生代之前说刚开始初始的时候，有100个Region，那么可能80个Region就是Eden，两个Survivor各自占10个Region。这里其实还是有Eden和Survivor的概念的，他们会各自占据不同的Region。一旦新生代达到了设定的占据堆内存的最大大小60%，这个时候还是会触发新生代的GC，G1就会用之前说过的复制算法来进行垃圾回收，进入一个“Stop the World”状态，然后把Eden对应的Region中的存活对象放入S1对应的Region中，接着回收掉Eden对应的Region中的垃圾对象，但是这个过程跟之前是有区别的，因为G1是可以设定目标GC停顿时间的，也就是G1执行GC的时候最多可以让系统停顿多长时间，可 以通过“-XX:MaxGCPauseMills”参数来设定，默认值是200ms。那么G1就会对每个Region追踪回收他需要多少时间，可以回收多少对象来选择回收一部分的Region，保证GC停顿时 间控制在指定范围内，尽可能多的回收掉一些对象。
+
+**对象什么时候进入老年代**
+
+(1)对象在新生代躲过了很多次的垃圾回收，达到了一定的年龄了，“-XX:MaxTenuringThreshold”参数可以设置这个年龄，他就会进入老年代
+
+(2)动态年龄判定规则，如果一旦发现某次新生代GC过后，存活对象超过了Survivor的50%
+
+**大对象Region**
+
+G1提供了专门的Region来存放大对象，而不是让大对象进入老年代的Region中。在G1中，大对象的判定规则就是一个大对象超过了一个Region大小的50%，而且一个大对象如果太大，可能会横跨多个Region来存放。
+
+
+
+
+
+## 触发新生代+老年代的混合垃圾回收
+
+G1有一个参数，是“-XX:InitiatingHeapOccupancyPercent”，他的默认值是45%，如果老年代占据了堆内存的45%的Region的时候，此时就会尝试触发一个新生代+老年代一起回收的混合回收阶段。
+
+**G1垃圾回收的过程**
+
+1. 首先会触发一个“初始标记”的操作，这个过程是需要进入“Stop the World”的，仅仅只是标记一下GC Roots直接能引用的对象， 这个过程速度是很快的。
+2. 进入“并发标记”的阶段，这个阶段会允许系统程序的运行，同时进行GC Roots追踪，从GC Roots开始追踪所有的存活对象。这个并发标记阶段还是很耗时的，因为要追踪全部的存活对象。但是这个阶段是可以跟系统程序并发运行的，所以对系统程序的影响不太大。
+3. 最终标记阶段，这个阶段会进入“Stop the World”，系统程序是禁止运行的，但是会根据并发标记 阶段记录的 那些对象修改，最终标记一下有哪些存活对象，有哪些是垃圾对象。
+4. 最后一个阶段，就是“混合回收“阶段，这个阶段会计算老年代中每个Region中的存活对象数量，存活对象的占比，还有执行垃圾回收的预期性能和效率。接着会停止系统程序，然后全力以赴尽快进行垃圾回收，此时会选择部分Region进行回收，因为必须让垃圾回收的停顿时间控制在我们指定的范围内。
+
+**G1垃圾回收器的一些参数**
+
+一般在老年代的Region占据了堆内存的Region的45%之后，会触发一个混合回收的过程，也就是Mixed GC。
+
+“-XX:G1MixedGCCountTarget”参数，就是在一次混合回收的过程中，最后一个阶段执行几次混合回收，默认值是8次。意味着最后一个阶段，先停止系统运行，混合回收一些Region，再恢复系统运行，接着再次禁止系统运行，混合回收一些Region，反 复8次。因为停止系统一会儿，回收掉一些Region，再让系统运行一会儿，然后再次停止系统一会儿，再次回收掉一些Region，这样可以尽 可能让系统不要停顿时间过长，可以在多次回收的间隙，也运行一下。
+
+“-XX:G1HeapWastePercent”，默认值是5%。在混合回收的时候，对Region回收都是基于复制算法进行的，都是把要回收的Region里的存活对象放入其他 Region，然后这个Region中的垃圾对象全部清理掉，这样的话在回收过程就会不断空出来新的Region，一旦空闲出来的Region数量达到了堆内存的5%，此时就会 立即停止混合回收，意味着本次混合回收就结束了。
+
+“-XX:G1MixedGCLiveThresholdPercent”，他的默认值是85%，意思就是确定要回收的Region的时候，必须是存活对象低于85%的Region才可以进行回收
+
+**回收失败时的Full GC**
+
+如果在进行Mixed回收的时候，无论是年轻代还是老年代都基于复制算法进行回收，都要把各个Region的存活对象拷贝到别的Region 里去，此时万一出现拷贝的过程中发现没有空闲Region可以承载自己的存活对象了，就会触发 一次失败。一旦失败，立马就会切换为停止系统程序，然后采用单线程进行标记、清理和压缩整理，空闲出来一批Region，这个过程是极慢极慢的。
+
+**G1垃圾回收器的默认内存布局**
+
+假设对机器上的JVM分配4G给堆内存，其中新生代默认初始占比为5%，最大占比为60%，每个Java线程的栈内存为1MB， 元数据区域(永久代)的内存为256M，此时JVM参数如下:"-Xms4096M -Xmx4096M -Xss1M -XX:PermSize=256M -XX:MaxPermSize=256M -XX:+UseG1GC"
+“-XX:G1NewSizePercent”参数是用来设置新生代初始占比的，不用设置，维持默认值为5%即可。
+“-XX:G1MaxNewSizePercent”参数是用来设置新生代最大占比的，也不用设置，维持默认值为60%即可。
+
+此时堆内存共4G，那么此时会除以2048，计算出每个Region的大小，此时每个Region的大小就是2MB，刚开始新生代就占5%的Region，可以认为新生代就是只有100个Region，有200MB的内存空间，
+
+在G1垃圾回收器中有一个至关重要的参数会影响到GC的表现，就是“-XX:MaxGCPauseMills”，他的默认值是200 毫秒
+
+其实G1里是很动态灵活的，他会根据你设定的gc停顿时间给你的新生代不停 分配更多Region，然后到一定程度，感觉差不多了，就会触发新生代gc，保证新生代gc的时候导致的系统停顿时间在你预设范围内。
+
+
+
+
+
+
+
+## JVM实验
+
+### 模拟一次全过程的GC过程
+
+JVM参数
+
+```jvm
+-XX:NewSize=5242880 -XX:MaxNewSize=5242880 -XX:InitialHeapSize=10485760 -XX:MaxHeapSize=10485760 -XX:SurvivorRatio=8 -XX:PretenureSizeThreshold=10485760 -XX:+UseParNewGC -XX:+UseConcMarkSweepGC -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -Xloggc:gc.log
+
+-XX:NewSize=5242880	//新生代大小
+-XX:MaxNewSize=5242880	//新生代最大的大小
+-XX:InitialHeapSize=10485760	//初始化堆内存大小
+-XX:MaxHeapSize=10485760		//最大堆内存大小
+XX:SurvivorRatio=8				//新生代的E:S:S = 8:1:1
+-XX:PretenureSizeThreshold=10485760	//指定了大对象阈值是10MB
+-XX:+UseParNewGC					//新生代使用ParNew GC
+-XX:+UseConcMarkSweepGC				//老年代使用的是CMS GC
+-XX:+PrintGCDetils					//打印详细的gc日志
+-XX:+PrintGCTimeStamps				//打印出来每次GC发生的时间
+-Xloggc:gc.log						//设置将gc日志写入一个磁盘文件
+```
+
+程序代码
+
+```java
+public class Demo {
+    public static void main(String[] args) {
+        byte[] array1 = new byte[1024 * 1024];
+        array1 = new byte[1024 * 1024];
+        array1 = new byte[1024 * 1024];
+        array1 = null;
+        
+        byte[] array2 = new byte[2 * 1024 * 1024];
+    }
+}
+```
+
+分析GC情况
+
+```text
+array1 会创建1M的数组，占用新生代1M内存空间   --此时新生代 4.5M(E+S) 占用1M   -->剩3.5M
+array1 又创建1M的数组，占用新生代1M内存空间	  --此时新生代 4.5M 占用2M		   -->剩2.5M
+array1 又创建1M的数组，占用新生代1M内存空间	  --此时新生代 4.5M 占用3M		   -->剩1.5M
+
+array1=null 此时新生代产生3M的垃圾对象
+
+array2 创建2M的数组对象，由于此时新生代剩余1M内存，无法分配。所以会触发一次新生代的GC，
+```
+
+GC日志
+
+```java
+Java HotSpot(TM) 64-Bit Server VM (25.251-b08) for bsd-amd64 JRE (1.8.0_251-b08), built on Mar 12 2020 02:36:37 by "java_re" with gcc 4.2.1 (Based on Apple Inc. build 5658) (LLVM build 2336.11.00)
+Memory: 4k page, physical 16777216k(912780k free)
+// 虚拟机的一些基本信息
+
+/proc/meminfo:
+
+// jvm人工配置的参数信息
+CommandLine flags: -XX:InitialHeapSize=10485760 -XX:MaxHeapSize=10485760 -XX:MaxNewSize=5242880 -XX:NewSize=5242880 -XX:OldPLABSize=16 -XX:PretenureSizeThreshold=10485760 -XX:+PrintGC -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:SurvivorRatio=8 -XX:+UseCompressedClassPointers -XX:+UseCompressedOops -XX:+UseConcMarkSweepGC -XX:+UseParNewGC
+
+// 从系统运行开始的0.127s 由于Eden区内存不够了，内存分配失败产生的一次ParNew新生代Young GC 垃圾回收
+// 垃圾回收前的内存使用大约3.4M，回收后的内存使用了大约0.4M，而总共可以分配的有大约4.5M(E[4M] + S[0.5M])，此次回收花费1.6ms
+// 整个java的堆内存有大约9.5M，GC前使用了3.5M，GC后使用内存1.4M
+0.127: [GC (Allocation Failure) 0.127: [ParNew: 3470K->402K(4608K), 0.0016141 secs] 3470K->1428K(9728K), 0.0017226 secs] [Times: user=0.01 sys=0.00, real=0.00 secs] 
+
+// java整个堆内存情况
+Heap
+ // par new 垃圾回收负责的总共内存4.5M，已使用3.5M
+ par new generation   total 4608K, used 3582K [0x00000007bf600000, 0x00000007bfb00000, 0x00000007bfb00000)
+  //其中 eden空间有4M，使用率为77%
+  eden space 4096K,  77% used [0x00000007bf600000, 0x00000007bf91af40, 0x00000007bfa00000)
+  //survivor1空间有0.5M，使用率为78%
+  from space 512K,  78% used [0x00000007bfa80000, 0x00000007bfae4950, 0x00000007bfb00000)
+  //survivor2空间有0.5M，使用率为0%
+  to   space 512K,   0% used [0x00000007bfa00000, 0x00000007bfa00000, 0x00000007bfa80000)
+ //CMS 垃圾回收负责的内存空间有5MM，已使用1M
+ concurrent mark-sweep generation total 5120K, used 1026K [0x00000007bfb00000, 0x00000007c0000000, 0x00000007c0000000)
+ Metaspace       used 2942K, capacity 4496K, committed 4864K, reserved 1056768K
+ class space    used 320K, capacity 388K, committed 512K, reserved 1048576K
+
+used：加载的类的空间量
+capacity：当前分配块的元数据的空间。
+committed：空间块的数量。
+reserved：元数据的空间保留（但不一定提交）的量提交
+这几个概念待弄清楚
+```
+
+### 案例2
+
+JVM参数
+
+```text
+-XX:NewSize=10485760 -XX:MaxNewSize=10485760 -XX:InitialHeapSize=20971520 -XX:MaxHeapSize=20971520 -XX:SurvivorRatio=8 -XX:MaxTenuringThreshold=15 -XX:PretenureSizeThreshold=10485760 -XX:+UseParNewGC -XX:+UseConcMarkSweepGC -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -Xloggc:gc-demo1.log
+```
+
+程序代码
+
+```java
+public class Demo1 {
+    public static void main(String[] args) {
+        byte[] array1=new byte[2 * 1024 * 1024];
+        array1= new byte[2 * 1024 * 1024];
+        array1= new byte[2 * 1024 * 1024];
+        array1= null;
+        byte[] array2 = new byte[128 * 1024];
+        byte[] array3 = new byte[2 * 1024* 1024];
+    }
+}
+```
+
+
+
+### 案例3(新生代GC S区放不下，部分进入老年区)
+
+JVM参数
+
+```text
+-XX:NewSize=10485760 -XX:MaxNewSize=10485760 -XX:InitialHeapSize=20971520 -XX:MaxHeapSize=20971520 -XX:SurvivorRatio=8 -XX:MaxTenuringThreshold=15 -XX:PretenureSizeThreshold=10485760 -XX:+UseParNewGC -XX:+UseConcMarkSweepGC -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -Xloggc:gc-demo1.log
+```
+
+程序代码
+
+```java
+public class Demo1 {
+    public static void main(String[] args) {
+        byte[] array1=new byte[2 * 1024 * 1024];
+        array1= new byte[2 * 1024 * 1024];
+        array1= new byte[2 * 1024 * 1024];
+        byte[] array2 = new byte[128 * 1024];
+        byte[] array3 = new byte[2 * 1024* 1024];
+    }
+}
+```
+
+GC分析
+
+```text
+array1 会创建2M的数组，占用新生代2M内存空间   --此时新生代 9M(E+S) 占用2M   -->剩7
+array1 又创建2M的数组，占用新生代2M内存空间	  --此时新生代 9M 占用2M		   -->剩5
+array1 又创建2M的数组，占用新生代2M内存空间	  --此时新生代 9M 占用3M		   -->剩3
+
+array2 创建128kb的数组，占用新生代128KB内存空间	--新生代 9M 占用 128KB	-->剩2.72KB
+array3 创建2M的数组对象，由于此时新生代eden区剩余1.72M内存，无法分配。所以会触发一次新生代的GC
+
+此时回收之后 剩余2.128M，无法放入survive区域，直接进入老年区，但是不会全部进入，2M对象直接进入，剩下128KB放到survive区域。
+```
+
+GC日志
+
+```java
+CommandLine flags: -XX:InitialHeapSize=20971520 -XX:MaxHeapSize=20971520 -XX:MaxNewSize=10485760 -XX:MaxTenuringThreshold=15 -XX:NewSize=10485760 -XX:OldPLABSize=16 -XX:PretenureSizeThreshold=10485760 -XX:+PrintGC -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:SurvivorRatio=8 -XX:+UseCompressedClassPointers -XX:+UseCompressedOops -XX:+UseConcMarkSweepGC -XX:+UseParNewGC 
+0.133: [GC (Allocation Failure) 0.133: [ParNew: 7660K->391K(9216K), 0.0024103 secs] 7660K->2441K(19456K), 0.0025288 secs] [Times: user=0.01 sys=0.00, real=0.00 secs] 
+Heap
+ par new generation   total 9216K, used 2603K [0x00000007bec00000, 0x00000007bf600000, 0x00000007bf600000)
+  eden space 8192K,  27% used [0x00000007bec00000, 0x00000007bee290f8, 0x00000007bf400000)
+  from space 1024K,  38% used [0x00000007bf500000, 0x00000007bf561d58, 0x00000007bf600000)
+  to   space 1024K,   0% used [0x00000007bf400000, 0x00000007bf400000, 0x00000007bf500000)
+ // 老年代占据2M对象
+ concurrent mark-sweep generation total 10240K, used 2050K [0x00000007bf600000, 0x00000007c0000000, 0x00000007c0000000)
+ Metaspace       used 2974K, capacity 4496K, committed 4864K, reserved 1056768K
+  class space    used 327K, capacity 388K, committed 512K, reserved 1048576K
+```
+
+### 案例4(大对象直接进入)
+
+JVM参数
+
+```text
+-XX:NewSize=10485760
+-XX:MaxNewSize=10485760
+-XX:InitialHeapSize=20971520
+-XX:MaxHeapSize=20971520
+-XX:SurvivorRatio=8
+-XX:MaxTenuringThreshold=15
+-XX:PretenureSizeThreshold=3145728			// 3M
+-XX:+UseParNewGC
+-XX:+UseConcMarkSweepGC
+-XX:+PrintGCDetails
+-XX:+PrintGCTimeStamps
+-Xloggc:gc-demo1.log
+```
+
+程序代码
+
+```java
+public class Demo1 {
+    public static void main(String[] args) {
+        byte[] array1=new byte[2 * 1024 * 1024];
+        array1= new byte[2 * 1024 * 1024];
+        array1= new byte[2 * 1024 * 1024];
+        byte[] array2 = new byte[128 * 1024];
+        byte[] array3 = new byte[3 * 1024* 1024];
+    }
+}
+```
+
+GC分析
+
+```text
+array1 会创建2M的数组，占用新生代2M内存空间   --此时新生代 9M(E+S) 占用2M   -->剩7
+array1 又创建2M的数组，占用新生代2M内存空间	  --此时新生代 9M 占用2M		   -->剩5
+array1 又创建2M的数组，占用新生代2M内存空间	  --此时新生代 9M 占用3M		   -->剩3
+
+array2 创建128kb的数组，占用新生代128KB内存空间	--新生代 9M 占用 128KB	-->剩2.72KB
+array3 创建3的数组大对象，直接进入老年区，不会触发新生代GC
+```
+
+GC日志
+
+```java
+Java HotSpot(TM) 64-Bit Server VM (25.251-b08) for bsd-amd64 JRE (1.8.0_251-b08), built on Mar 12 2020 02:36:37 by "java_re" with gcc 4.2.1 (Based on Apple Inc. build 5658) (LLVM build 2336.11.00)
+Memory: 4k page, physical 16777216k(623620k free)
+
+/proc/meminfo:
+
+CommandLine flags: -XX:InitialHeapSize=20971520 -XX:MaxHeapSize=20971520 -XX:MaxNewSize=10485760 -XX:MaxTenuringThreshold=15 -XX:NewSize=10485760 -XX:OldPLABSize=16 -XX:PretenureSizeThreshold=3145728 -XX:+PrintGC -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:SurvivorRatio=8 -XX:+UseCompressedClassPointers -XX:+UseCompressedOops -XX:+UseConcMarkSweepGC -XX:+UseParNewGC 
+Heap
+ par new generation   total 9216K, used 7990K [0x00000007bec00000, 0x00000007bf600000, 0x00000007bf600000)
+  eden space 8192K,  97% used [0x00000007bec00000, 0x00000007bf3cd870, 0x00000007bf400000)
+  from space 1024K,   0% used [0x00000007bf400000, 0x00000007bf400000, 0x00000007bf500000)
+  to   space 1024K,   0% used [0x00000007bf500000, 0x00000007bf500000, 0x00000007bf600000)
+ concurrent mark-sweep generation total 10240K, used 3072K [0x00000007bf600000, 0x00000007c0000000, 0x00000007c0000000)
+ Metaspace       used 2991K, capacity 4496K, committed 4864K, reserved 1056768K
+  class space    used 328K, capacity 388K, committed 512K, reserved 1048576K
+
+```
+
+
+
+## 案例4(大对象直接进入+FullGC)
+
+JVM参数
+
+```text
+-XX:NewSize=10485760
+-XX:MaxNewSize=10485760
+-XX:InitialHeapSize=20971520
+-XX:MaxHeapSize=20971520
+-XX:SurvivorRatio=8
+-XX:MaxTenuringThreshold=15
+-XX:PretenureSizeThreshold=3145728		//3M
+-XX:+UseParNewGC
+-XX:+UseConcMarkSweepGC
+-XX:+PrintGCDetails
+-XX:+PrintGCTimeStamps
+-Xloggc:gc-demo2.log
+```
+
+程序代码
+
+```java
+public class Demo2 {
+    public static void main(String[] args) {
+        byte[] array1=new byte[4 * 1024 * 1024];	// 直接进入old
+        array1 = null;
+        byte[] array2=new byte[2 * 1024 * 1024];	// eden
+        byte[] array3=new byte[2 * 1024 * 1024];	// eden
+        byte[] array4=new byte[2 * 1024 * 1024];	// eden
+        byte[] array5 = new byte[128 * 1024];		// eden
+        byte[] array6 = new byte[2 * 1024* 1024];	// eden无法分配内存，perNew GC后，发现7.28M无法回收，判断是否能进入
+        											// 并且这里可以直接先放入2个2M对象进入老年代。
+        											// 发现old区剩下6M无法放入,只能放4M进去,且大于历次平均进入老年区大小
+        											// 则进行FullGC，完事后就把剩下未放入老年区的对象放进来。
+    }
+}
+```
+
+GC日志
+
+```java
+Java HotSpot(TM) 64-Bit Server VM (25.251-b08) for bsd-amd64 JRE (1.8.0_251-b08), built on Mar 12 2020 02:36:37 by "java_re" with gcc 4.2.1 (Based on Apple Inc. build 5658) (LLVM build 2336.11.00)
+Memory: 4k page, physical 16777216k(656788k free)
+
+/proc/meminfo:
+
+CommandLine flags: -XX:InitialHeapSize=20971520 -XX:MaxHeapSize=20971520 -XX:MaxNewSize=10485760 -XX:MaxTenuringThreshold=15 -XX:NewSize=10485760 -XX:OldPLABSize=16 -XX:PretenureSizeThreshold=3145728 -XX:+PrintGC -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:SurvivorRatio=8 -XX:+UseCompressedClassPointers -XX:+UseCompressedOops -XX:+UseConcMarkSweepGC -XX:+UseParNewGC 
+    																// 没有可回收的
+0.131: [GC (Allocation Failure) 0.131: [ParNew (promotion failed): 7825K->8361K(9216K), 0.0032624 secs]0.134: [CMS: 8194K->6647K(10240K), 0.0024966 secs] 11921K->6647K(19456K), [Metaspace: 3008K->3008K(1056768K)], 0.0058960 secs] [Times: user=0.02 sys=0.01, real=0.01 secs] 
+Heap
+ par new generation   total 9216K, used 2213K [0x00000007bec00000, 0x00000007bf600000, 0x00000007bf600000)
+  eden space 8192K,  27% used [0x00000007bec00000, 0x00000007bee297c8, 0x00000007bf400000)
+  from space 1024K,   0% used [0x00000007bf500000, 0x00000007bf500000, 0x00000007bf600000)
+  to   space 1024K,   0% used [0x00000007bf400000, 0x00000007bf400000, 0x00000007bf500000)
+ concurrent mark-sweep generation total 10240K, used 6647K [0x00000007bf600000, 0x00000007c0000000, 0x00000007c0000000)
+ Metaspace       used 3029K, capacity 4496K, committed 4864K, reserved 1056768K
+  class space    used 329K, capacity 388K, committed 512K, reserved 1048576K
+```
+
+## 案例5(FullGC->ParNew GC) ----->待完善
+
+JVM参数
+
+```text
+-XX:NewSize=10485760
+-XX:MaxNewSize=10485760
+-XX:InitialHeapSize=20971520
+-XX:MaxHeapSize=20971520
+-XX:SurvivorRatio=8
+-XX:MaxTenuringThreshold=15
+-XX:PretenureSizeThreshold=3145728		//3M
+-XX:+UseParNewGC
+-XX:+UseConcMarkSweepGC
+-XX:+PrintGCDetails
+-XX:+PrintGCTimeStamps
+-Xloggc:gc-demo2.log
+```
+
+程序代码
+
+```java
+public class Demo2 {
+    public static void main(String[] args) {
+        byte[] array1=new byte[7 * 1024 * 1024];	// 直接进入old
+        array1 = null;
+        byte[] array2=new byte[2 * 1024 * 1024];	// eden
+        byte[] array3=new byte[2 * 1024 * 1024];	// eden
+        array3=new byte[2 * 1024 * 1024];			// eden
+        array3 = null;
+        byte[] array4 = new byte[4 * 1024 * 1024];	// 直接进入old，但是放不下，只能FullGC后，伴随着ParNewGC
+        											// 将新生代回收，进入2M到老年代，此时老年代占用2M，然后在进行内存分配
+        											// 将4M放入老年代
+        byte[] array5 = new byte[128 * 1024];		// eden
+        byte[] array6 = new byte[2 * 1024* 1024];	// eden
+        array6 = new byte[2 * 1024* 1024];			// eden
+        array6 = new byte[2 * 1024* 1024];			// eden
+        array6 = new byte[2 * 1024* 1024];			// eden
+        array6 = new byte[2 * 1024* 1024];			// 无法分配内存, 需要ParNewGC，回收完后，2.128M进入老年代，eden为空
+        											// 日志分析有CMS初始化标记，待研究
+    }
+}
+```
+
+GC日志
+
+```java
+Java HotSpot(TM) 64-Bit Server VM (25.251-b08) for bsd-amd64 JRE (1.8.0_251-b08), built on Mar 12 2020 02:36:37 by "java_re" with gcc 4.2.1 (Based on Apple Inc. build 5658) (LLVM build 2336.11.00)
+Memory: 4k page, physical 16777216k(467292k free)
+
+/proc/meminfo:
+
+CommandLine flags: -XX:InitialHeapSize=20971520 -XX:MaxHeapSize=20971520 -XX:MaxNewSize=10485760 -XX:MaxTenuringThreshold=15 -XX:NewSize=10485760 -XX:OldPLABSize=16 -XX:PretenureSizeThreshold=3145728 -XX:+PrintGC -XX:+PrintGCDetails -XX:+PrintGCTimeStamps -XX:SurvivorRatio=8 -XX:+UseCompressedClassPointers -XX:+UseCompressedOops -XX:+UseConcMarkSweepGC -XX:+UseParNewGC 
+0.126: [GC (Allocation Failure) 0.126: [CMS: 7168K->2427K(10240K), 0.0025480 secs] 14865K->2427K(19456K), [Metaspace: 3063K->3063K(1056768K)], 0.0026438 secs] [Times: user=0.00 sys=0.00, real=0.00 secs] 
+0.130: [GC (Allocation Failure) 0.130: [ParNew: 6519K->144K(9216K), 0.0019419 secs] 13042K->8717K(19456K), 0.0020079 secs] [Times: user=0.01 sys=0.00, real=0.01 secs] 
+0.132: [GC (CMS Initial Mark) [1 CMS-initial-mark: 8573K(10240K)] 10820K(19456K), 0.0001541 secs] [Times: user=0.00 sys=0.00, real=0.00 secs] 
+0.132: [CMS-concurrent-mark-start]
+Heap
+ par new generation   total 9216K, used 2329K [0x00000007bec00000, 0x00000007bf600000, 0x00000007bf600000)
+  eden space 8192K,  26% used [0x00000007bec00000, 0x00000007bee22568, 0x00000007bf400000)
+  from space 1024K,  14% used [0x00000007bf500000, 0x00000007bf524010, 0x00000007bf600000)
+  to   space 1024K,   0% used [0x00000007bf400000, 0x00000007bf400000, 0x00000007bf500000)
+ concurrent mark-sweep generation total 10240K, used 8573K [0x00000007bf600000, 0x00000007c0000000, 0x00000007c0000000)
+ Metaspace       used 3075K, capacity 4496K, committed 4864K, reserved 1056768K
+  class space    used 336K, capacity 388K, committed 512K, reserved 1048576K
+```
+
+
+
+
+
+
+
+## JVM分析工具
+
+jps查看当前的java进程
+
+
+
+jstat -gc PID 查看此刻gc情况
+
+```text
+S0C:这是From Survivor区的大小
+S1C:这是To Survivor区的大小
+S0U:这是From Survivor区当前使用的内存大小
+S1U:这是To Survivor区当前使用的内存大小
+EC:这是Eden区的大小
+EU:这是Eden区当前使用的内存大小
+OC:这是老年代的大小
+OU:这是老年代当前使用的内存大小
+MC:这是方法区(永久代、元数据区)的大小
+MU:这是方法区(永久代、元数据区)的当前使用的内存大小
+YGC:这是系统运行迄今为止的Young GC次数
+YGCT:这是Young GC的耗时
+FGC:这是系统运行迄今为止的Full GC次数
+FGCT:这是Full GC的耗时
+GCT:这是所有GC的总耗时
+
+jstat -gccapacity PID:堆内存分析
+jstat -gcnew PID:年轻代GC分析，这里的TT和MTT可以看到对象在年轻代存活的年龄和存活的最大年龄
+jstat -gcnewcapacity PID:年轻代内存分析
+jstat -gcold PID:老年代GC分析
+jstat -gcoldcapacity PID:老年代内存分析
+jstat -gcmetacapacity PID:元数据区内存分析
+```
+
+
+
+jmap -heap PID 查看堆，可以使用jstat-gc PID
+
+jmap -histo PID 了解系统运行时的对象分布
+
+jmap -dump:live,format=b,file=dump.hprof PID 生成一个dump.hrpof二进制的格式文件，可以使用jhat去分析堆快照，jhat内置了web服务器，**jhat dump.hprof -port 7000**，接着在浏览器上访问当前这台机器的7000端口号，就可以通过图形化的方式去分析堆内存里的对象分布情况了。
+
+
+
+
+
+
+
+
+
