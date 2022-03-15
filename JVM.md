@@ -147,6 +147,47 @@ G1有一个参数，是“-XX:InitiatingHeapOccupancyPercent”，他的默认�
 
 
 
+“-XX:TraceClassLoading -XX:TraceClassUnloading” 这两个参数，顾名思义，就是追踪类加载和类卸载的情况，他会通过日志打印出来JVM中加载了哪些类，卸载了哪些类。加入这两个参数之后，就可以看到在Tomcat的catalina.out日志文件中，输出了一堆日志，里面显示类似如下的内容: 【Loaded sun.reflect.GeneratedSerializationConstructorAccessor from __JVM_Defined_Class】
+
+
+
+JVM参数设置：
+
+```text
+-XX:+CMSParallelInitialMarkEnabled表示在初始标记的多线程执行，减少STW;
+-XX:+CMSScavengeBeforeRemark:在重新标记之前执行minorGC减少重新标记时间;
+-XX:+CMSParallelRemarkEnabled:在重新标记的时候多线程执行，降低STW;
+-XX:CMSInitiatingOccupancyFraction=92和-XX:+UseCMSInitiatingOccupancyOnly配套使用，如果不设置后者，jvm第一 次会采用92%但是后续jvm会根据运行时采集的数据来进行GC周期，如果设置后者则jvm每次都会在92%的时候进行gc;
+-XX:+PrintHeapAtGC:在每次GC前都要GC堆的概况输出
+
+-XX:+HeapDumpOnOutOfMemoryError
+-XX:HeapDumpPath=/usr/local/app/oom
+第一个参数意思是在OOM的时候自动dump内存快照出来，第二个参数是说把内存快照放到哪儿去
+```
+
+较为完整的JVM参数模版
+
+```text
+-Xms4096M
+-Xmx4096M
+-Xmn3072M
+-Xss1M
+-XX:MetaspaceSize=256M
+-XX:MaxMetaspaceSize=256M
+-XX:+UseParNewGC
+-XX:+UseConcMarkSweepGC
+-XX:CMSInitiatingOccupancyFaction=92
+-XX:+UseCMSCompactAtFullCollection
+-XX:CMSFullGCsBeforeCompaction=0
+-XX:+CMSParallelInitialMarkEnabled
+-XX:+CMSScavengeBeforeRemark
+-XX:+DisableExplicitGC
+-XX:+PrintGCDetails
+-Xloggc:gc.log
+-XX:+HeapDumpOnOutOfMemoryError
+-XX:HeapDumpPath=/usr/local/app/oom
+```
+
 
 
 
@@ -643,3 +684,10 @@ S0C    S1C    S0U    S1U      EC       EU        OC         OU       MC     MU  
 
 
 
+如果在代码里大量用了类似反射的东西，那么JVM就是会动态的去生成一些类放入Metaspace区域里的。JVM在发射过程中动态生成的类的Class对象，他们都是SoftReference软引用的。那么SoftReference对象回收公式：clock - timestamp <= freespace \* SoftRefLRUPolicyMSPerMB。这个公式的意思就是说，“clock - timestamp”代表了一个软引用对象他有多久没被访问过了，freespace代表JVM中的空闲内存空间，SoftRefLRUPolicyMSPerMB代表每一MB空闲内存空间可以允许SoftReference对象存活多久。
+
+-XX:SoftRefLRUPolicyMSPerMB 这个参数设置大一些即可，千万别设置为0，可以设置个1000，2000，3000，或者5000毫秒。
+
+
+
+不要自己使用“System.gc()”去随便触发GC，一方面可以在JVM参数中加入这 个参数:-XX:+DisableExplicitGC。这个参数的意思就是禁止显式执行GC，不允许你来通过代码触发GC。
