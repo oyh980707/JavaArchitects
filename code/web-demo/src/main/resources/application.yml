@@ -1,0 +1,9 @@
+server:
+  port: 8080
+logging:
+  config: classpath:logback-spring.xml
+
+gateway:
+  env: prod
+  no-need-filter:
+    url: /user/login

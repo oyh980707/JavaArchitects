@@ -1,0 +1,4 @@
+
+# 启动环境
+gateway:
+  evn: prod
