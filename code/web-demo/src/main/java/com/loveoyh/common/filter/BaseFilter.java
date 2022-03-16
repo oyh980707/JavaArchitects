@@ -9,6 +9,7 @@ import com.loveoyh.common.utils.JSONUtils;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 import org.springframework.beans.factory.annotation.Value;
+import org.springframework.core.annotation.Order;
 import org.springframework.http.HttpMethod;
 import org.springframework.stereotype.Component;
 
@@ -22,6 +23,7 @@ import java.io.IOException;
  * 第一个基础过滤器，用于解决跨域，参数封装及转换，日志记录
  */
 @Component
+@Order(1)
 public class BaseFilter implements Filter {
 
     private static final Logger logger = LoggerFactory.getLogger(BaseFilter.class);
@@ -49,6 +51,7 @@ public class BaseFilter implements Filter {
             HttpServletResponse response = (HttpServletResponse) servletResponse;
             HttpServletRequest request = (HttpServletRequest) servletRequest;
             String requestPath = request.getRequestURI();
+            // 解决跨域问题
             response.setHeader("Access-Control-Allow-Origin", request.getHeader("Origin"));
             response.setHeader("Access-Control-Allow-Methods", "*");
             response.setHeader("Access-Control-Allow-Credentials", "true");

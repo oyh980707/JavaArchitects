@@ -4,7 +4,7 @@ import com.loveoyh.common.entity.ResultVO;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RestController;
 
-@RestController("/user")
+@RestController()
 public class DemoController {
 
     @PostMapping("login")
