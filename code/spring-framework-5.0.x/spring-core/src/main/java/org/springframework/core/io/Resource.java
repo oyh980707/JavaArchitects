@@ -27,6 +27,9 @@ import java.nio.channels.ReadableByteChannel;
 import org.springframework.lang.Nullable;
 
 /**
+ *
+ * Resource接口抽象了所有 Spring内部使用到的底层资源: File、 URL、 Classpath等。
+ *
  * Interface for a resource descriptor that abstracts from the actual
  * type of underlying resource, such as a file or class path resource.
  *

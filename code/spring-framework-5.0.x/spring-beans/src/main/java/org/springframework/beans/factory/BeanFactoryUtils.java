@@ -74,6 +74,7 @@ public abstract class BeanFactoryUtils {
 		Assert.notNull(name, "'name' must not be null");
 		String beanName = name;
 		while (beanName.startsWith(BeanFactory.FACTORY_BEAN_PREFIX)) {
+			// 如果是BeanFactory 则先去除前缀 &
 			beanName = beanName.substring(BeanFactory.FACTORY_BEAN_PREFIX.length());
 		}
 		return beanName;

@@ -12,6 +12,9 @@
 		<!-- additional collaborators and configuration for this bean go here -->
 	</bean>
 
+	<bean id="car" class="com.loveoyh.demo.CarFactoryBean">
+	</bean>
+
 	<!-- more bean definitions for services go here -->
 
 </beans>

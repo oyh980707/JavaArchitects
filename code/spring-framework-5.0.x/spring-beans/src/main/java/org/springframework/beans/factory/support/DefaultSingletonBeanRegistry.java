@@ -161,6 +161,7 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	@Override
 	@Nullable
 	public Object getSingleton(String beanName) {
+		//  allowEarlyReference 设置为true 表示允许早期依赖
 		return getSingleton(beanName, true);
 	}
 
@@ -171,17 +172,38 @@ public class DefaultSingletonBeanRegistry extends SimpleAliasRegistry implements
 	 * @param beanName the name of the bean to look for
 	 * @param allowEarlyReference whether early references should be created or not
 	 * @return the registered singleton object, or {@code null} if none found
+	 *
+	 * 对不同的map解释
+	 * singletonObjects：用于保存 beanName 和创建 bean 实例之间的关系， bean name 一> bean instance
+	 * earlySingletonObjects：也是保存 beanName 和创建 bean 实例之间的关系，
+	 * 						与 singletonObjects 的不同之处在于，当一个单例 bean 被放到这里面后
+	 * 						那么当 bean 还在创建过程中，就可以通过 getBean 方法获取到了
+	 * 						其目的是用来检测循环引用
+	 * singletonFactories：用于保存 beanName 和创建 bean 的工厂之间的关系， bean name 一> ObjectFactory。
+	 * 						为什么创建之后回 remove() 掉这个工厂，是因为这里是创建单例
+	 * registeredSingletons：用来保存当前所有巳注册的 bean
+	 *
 	 */
 	@Nullable
 	protected Object getSingleton(String beanName, boolean allowEarlyReference) {
+		// 从 singletonObjects 单例缓存中获取实例
 		Object singletonObject = this.singletonObjects.get(beanName);
 		if (singletonObject == null && isSingletonCurrentlyInCreation(beanName)) {
 			synchronized (this.singletonObjects) {
+				// 尝试从 提前暴露的缓存中 获取实例 如果此 bean J正在加载则不处理
 				singletonObject = this.earlySingletonObjects.get(beanName);
 				if (singletonObject == null && allowEarlyReference) {
+					// 如果允许提前曝露，则尝试从 singletonFactories 获取，这里其实
+					//  bean 中定义的 factory-method 方法中返回的 bean，就会尝试在这里通过工厂方法获取
+					// 如果加载不成功则再次尝试从 singletonFactories 中加载。
+
+					// 如果某些方法记提前初始化的时候则会调用 addSingletonFactory 方法将对应的
+					// ObjectFactory 初始化策略存储在 singletonFactories
 					ObjectFactory<?> singletonFactory = this.singletonFactories.get(beanName);
 					if (singletonFactory != null) {
+						// 调用预先设定的 getObject 方法
 						singletonObject = singletonFactory.getObject();
+						// 记录在缓存中 earlySingletonObjects 和 singletonFactories 互斥
 						this.earlySingletonObjects.put(beanName, singletonObject);
 						this.singletonFactories.remove(beanName);
 					}
