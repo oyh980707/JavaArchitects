@@ -119,11 +119,14 @@ class ConstructorResolver {
 		Object[] argsToUse = null;
 
 		if (explicitArgs != null) {
+			// 如果制定参数 - 直接使用指定入参进行构造对象
 			argsToUse = explicitArgs;
 		}
 		else {
 			Object[] argsToResolve = null;
+			// 尝试从配置文件中获取
 			synchronized (mbd.constructorArgumentLock) {
+				// 尝试从缓存中获取
 				constructorToUse = (Constructor<?>) mbd.resolvedConstructorOrFactoryMethod;
 				if (constructorToUse != null && mbd.constructorArgumentsResolved) {
 					// Found a cached constructor...
@@ -133,7 +136,10 @@ class ConstructorResolver {
 					}
 				}
 			}
+			// 如果缓存中存在
 			if (argsToResolve != null) {
+				// 解析参数类型， 如给定方法的构造函数 A(int, int)则通过此方法后就会把配置中的
+				// (”1”，”l”)转换为 (1,1) 缓存中的值可能是原始值也可能是最终值
 				argsToUse = resolvePreparedArguments(beanName, mbd, bw, constructorToUse, argsToResolve);
 			}
 		}
@@ -276,6 +282,7 @@ class ConstructorResolver {
 				beanInstance = strategy.instantiate(mbd, beanName, this.beanFactory, constructorToUse, argsToUse);
 			}
 
+			// 将构建的实例 加入 BeanWrapper 中
 			bw.setBeanInstance(beanInstance);
 			return bw;
 		}

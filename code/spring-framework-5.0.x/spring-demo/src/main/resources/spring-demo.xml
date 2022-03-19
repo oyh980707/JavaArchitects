@@ -14,6 +14,10 @@
 
 	<bean id="car" class="com.loveoyh.demo.CarFactoryBean">
 	</bean>
+	<bean id="helloAware" class="com.loveoyh.demo.HelloAware">
+	</bean>
+	<bean id="hello" class="com.loveoyh.demo.Hello">
+	</bean>
 
 	<!-- more bean definitions for services go here -->
 

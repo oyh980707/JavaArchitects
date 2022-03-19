@@ -13,10 +13,13 @@ public class SpringDemoApplication {
 //		User user = ac.getBean("user", User.class);
 //		System.out.println("username: "+user.getUsername());
 //		System.out.println("password: "+user.getPassword());
-		Car car = ac.getBean("car", Car.class);
-		System.out.println("getBrand: "+car.getBrand());
-		System.out.println("getMaxSpeed: "+car.getMaxSpeed());
-		System.out.println("getPrice: "+car.getPrice());
+//		Car car = ac.getBean("car", Car.class);
+//		System.out.println("getBrand: "+car.getBrand());
+//		System.out.println("getMaxSpeed: "+car.getMaxSpeed());
+//		System.out.println("getPrice: "+car.getPrice());
+		HelloAware helloAware = ac.getBean("helloAware", HelloAware.class);
+		helloAware.test();
+
 	}
 
 }
