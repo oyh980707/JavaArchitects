@@ -89,6 +89,10 @@ public abstract class AbstractAdvisorAutoProxyCreator extends AbstractAutoProxyC
 	 * @see #findCandidateAdvisors
 	 * @see #sortAdvisors
 	 * @see #extendAdvisors
+	 *
+	 * 对于指定 bean 的增强方法的获取一定是包含两个步骤的
+	 * 1. 获取所有的增强以及寻找所有增强中适用于 bean 的增强并应用，那么 findCandidateAdvisors 与 findAdvisorsThatCanApply便是做了这两件事情
+	 * 2. 如果无法找到对应的增强器便返回 DO_NOT_PROXY，其中 DO_NOT_PROXY=null。
 	 */
 	protected List<Advisor> findEligibleAdvisors(Class<?> beanClass, String beanName) {
 		List<Advisor> candidateAdvisors = findCandidateAdvisors();
