@@ -292,6 +292,7 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			}
 
 			// 如果不是仅仅做类型检查则是创建 bean， 这里要进行记录
+			// bean 从 mergedBeanDefinitions 移除，并加入到 alreadyCreated map中
 			if (!typeCheckOnly) {
 				markBeanAsCreated(beanName);
 			}
@@ -299,8 +300,9 @@ public abstract class AbstractBeanFactory extends FactoryBeanRegistrySupport imp
 			try {
 				// 将存储在 XML 配置文件的 GernericBeanDefinition 转换成 RootBeanDefinition
 				// 所有的 bean 后续处理都是针对于 RootBeanDefinition 的
-				// 所以这里需要进行一个转换，转换的同时 如果父类 bean不为空的话，则会一并合并父类的属性。
+				// 所以这里需要进行一个转换，转换的同时 如果父类 bean 不为空的话，则会一并合并父类的属性。
 				RootBeanDefinition mbd = getMergedLocalBeanDefinition(beanName);
+				// 校验是否 mbd 是否是抽象
 				checkMergedBeanDefinition(mbd, beanName, args);
 
 				// Guarantee initialization of beans that the current bean depends on.

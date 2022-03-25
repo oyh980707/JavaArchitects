@@ -17,8 +17,8 @@ public class SpringDemoApplication {
 //		System.out.println("getBrand: "+car.getBrand());
 //		System.out.println("getMaxSpeed: "+car.getMaxSpeed());
 //		System.out.println("getPrice: "+car.getPrice());
-		HelloAware helloAware = ac.getBean("helloAware", HelloAware.class);
-		helloAware.test();
+//		HelloAware helloAware = ac.getBean("helloAware", HelloAware.class);
+//		helloAware.test();
 
 	}
 

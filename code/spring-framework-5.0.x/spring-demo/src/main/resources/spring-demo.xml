@@ -18,6 +18,12 @@
 	</bean>
 	<bean id="hello" class="com.loveoyh.demo.Hello">
 	</bean>
+	<bean id="testMergedBeanDefinitionPostProcessor" class="com.loveoyh.demo.TestMergedBeanDefinitionPostProcessor">
+	</bean>
+	<bean id="testInstantiationAwareBeanPostProcessor" class="com.loveoyh.demo.TestInstantiationAwareBeanPostProcessor">
+	</bean>
+	<bean id="testBeanPostProcessor" class="com.loveoyh.demo.TestBeanPostProcessor">
+	</bean>
 
 	<!-- more bean definitions for services go here -->
 

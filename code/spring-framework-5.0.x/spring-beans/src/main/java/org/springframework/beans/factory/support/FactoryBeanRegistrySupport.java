@@ -98,8 +98,8 @@ public abstract class FactoryBeanRegistrySupport extends DefaultSingletonBeanReg
 	 * 而 doGetObjectFromFactoryBean 正是实现这个功能的。但是在上面的方法中除了调用。同 object = factory.getObject() 得到想要的结果后并没有直接返回，
 	 * 而是接下来又做了些后处理的操作
 	 * 进入 AbstractAutowireCapableBeanFactory 类的 postProcessObjectFromFactoryBean方法:
-	 * 尽可能保证所有 bean 初始化后都会调用注册的 BeanPostProcessor 的 postProcessA负erlnitialization 方法进行处理
-	 * 在实际开发过程中大可以针 对此特性设计自己的业务逻辑 。
+	 * 尽可能保证所有 bean 初始化后都会调用注册的 BeanPostProcessor 的 postProcessAfterlnitialization 方法进行处理
+	 * 在实际开发过程中大可以针对此特性设计自己的业务逻辑 。
 	 */
 	protected Object getObjectFromFactoryBean(FactoryBean<?> factory, String beanName, boolean shouldPostProcess) {
 		if (factory.isSingleton() && containsSingleton(beanName)) {
