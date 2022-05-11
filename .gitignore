@@ -7,3 +7,4 @@ code/sorted/.idea/inspectionProfiles/Project_Default.xml
 *.class
 *.DS_Store
 .idea
+**/target
