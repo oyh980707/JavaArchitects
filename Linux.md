@@ -456,6 +456,23 @@ yum安装git被安装在/usr/libexec/git-core目录下
 
     [注] 最好切换到git用户 不然后面新建的git仓库都要改权限
 
+### Git配置SSH 公钥
+
+> ssh -T git@github.com
+
+1. 测试一下，得到Permission denied(publickey)，意思表示缺少公钥。
+
+> ssh-keygen -t rsa -C "oyh980707"
+
+2. 填写git上的用户名账号 - 只是备注 可以不用加 -C参数
+
+> cat ~/.ssh/id_rsa.pub 
+
+3. 打印保存的公钥，在控制台将公钥复制下来。
+
+4. 登录相应的代码托管平台，添加刚刚复制的公钥即可
+
+
 ## 搭建gitblit
 
 相似的还有gogs，gitlab等
