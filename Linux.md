@@ -289,6 +289,113 @@ Linux 操作系统初始化脚本 profile
   
   - 在图形界面可以打开 yumex 进行管理
 
+
+## 虚拟机安装Linux minimal
+虚拟机装一个最小的Linux，然后在此基础上做扩展
+
+
+## 安装过程
+需要下载两个资源，Linux 安装镜像 和 虚拟机virtual box(也可以是VMware)
+
+> 下载 CentOS-7-x86_64-Minimal-2009.iso 
+> http://mirrors.aliyun.com/centos/7.9.2009/isos/x86_64/
+> 注意 是minimal，就是最小版本几乎就剩下内核了
+> 安装virtual Box，我认为它比VMware更轻量，而且开源免费
+> https://www.virtualbox.org/wiki/Downloads
+
+1. 打开virtual Box 新建一个虚拟机
+![](./images/virltual%20linux/virtual%20box%20create%20Linux%2001.png)
+1. 使用专家模式，内存2G
+![](./images/virltual%20linux/virtual%20box%20create%20Linux%2002.png)
+3. 磁盘给个20G，使用动态分配
+![](./images/virltual%20linux/virtual%20box%20create%20Linux%2003.png)
+4. 创建完后，设置下启动的用到的Linux镜像，也就是虚拟机启动安装的系统在哪里
+![](./images/virltual%20box%20create%20Linux%2004.png)
+5. 需要创建一个类似于启动硬盘
+![](./images/virltual%20linux/virtual%20box%20create%20Linux%2005.png)
+6. 启动后安装过程很简单，这里手动分区参考这个来进行
+![](./images/virltual%20linux/virtual%20box%20create%20Linux%2006.png)
+7. 进入后，因为没有图形界面，只有终端命令行界面，输入用户名密码即可进入
+![](./images/virltual%20linux/virtual%20box%20create%20Linux%2007.png)
+
+因为是最小安装，所以可以理解什么都没有
+
+查看网络命令ifconfig 自然就没有，通过yum search 这个命令我们发现ifconfig这个命令是在net-tools.x86_64，
+> yum search ifconfig
+
+安装net-tools.x86_64这个包
+> yum install net-tools.x86_64
+
+测试命令
+> ifconfig
+
+至此最小系统安装完成！
+![](./images/virltual%20linux/virtual%20box%20create%20Linux%2008.png)
+
+关于网络设置可以参考这两篇博客
+https://blog.csdn.net/u010411264/article/details/115057529
+https://blog.csdn.net/tangyi2008/article/details/89036433
+
+
+此时我们可以给系统做一个clone，把这个最小系统作为最基本的系统向上扩展
+
+
+## 定制自己的系统
+拷给一个最小系统，根据需求定制系统，制作镜像
+
+### 常用软件安装
+git用于拉去仓库代码
+> yum -y install git
+
+wget 用于服务器下载资源
+> yum -y install wget
+
+vim用于系统编辑文本
+> yum -y install vim*
+
+其余根据自己需求安装，比如c/c++编译器的gcc等等
+
+### 防火墙
+```bash
+# 禁用/停止自带的firewalld服务
+systemctl stop firewalld
+# 注销
+# 系统重启的时候不会启动
+# 该服务无法进行做systemctl start/stop操作
+# 该服务无法进行systemctl enable/disable操作
+systemctl mask firewalld
+
+yum install iptables-services / yum update iptables 更新
+
+#注册iptables服务
+#相当于以前的chkconfig iptables on
+systemctl enable iptables.service
+#开启服务
+systemctl start iptables.service
+#查看状态
+systemctl status iptables.service
+service iptables status
+
+# 查看iptables现有规则
+iptables -L -n
+# 开放22端口
+iptables -A INPUT -p tcp --dport 22 -j ACCEPT
+# 开放21端口(FTP)
+iptables -A INPUT -p tcp --dport 21 -j ACCEPT
+# 开放80端口(HTTP)
+iptables -A INPUT -p tcp --dport 80 -j ACCEPT
+# 开放443端口(HTTPS)
+iptables -A INPUT -p tcp --dport 443 -j ACCEPT
+
+# 保存上述规则
+service iptables save
+
+# 以上也可以通过修改文件实现 在拒绝所有连接的规则之前加规则才有效
+vim /etc/sysconfig/iptables
+
+```
+以上参考博客：https://www.cnblogs.com/kreo/p/4368811.html
+
 ## 安装Git
 
 ### yum安装
