@@ -10,7 +10,7 @@ public class SpringDemoApplication {
 		// 构造Resource 统一资源 Resource 接口可以对所有资源文件进行统一处理
 //		ClassPathResource resource = new ClassPathResource("spring-demo.xml");
 
-//		ApplicationContext ac = new ClassPathXmlApplicationContext("spring-demo.xml");
+		ApplicationContext ac = new ClassPathXmlApplicationContext("spring-demo.xml");
 //		AnnotationConfigApplicationContext aac = new AnnotationConfigApplicationContext("com.loveoyh.demo");
 //		User user = aac.getBean("user", User.class);
 //		System.out.println(user);
