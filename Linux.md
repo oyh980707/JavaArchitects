@@ -745,10 +745,10 @@ yum安装git被安装在/usr/libexec/git-core目录下
 ## Jenkins 的安装与配置
 
 1. 下载tomcat8并解压到指定目录
-   wget https://mirrors.tuna.tsinghua.edu.cn/apache/tomcat/tomcat-8/v8.5.58/bin/apache-tomcat-8.5.58.tar.gz
-   mv apache-tomcat-8.5.58.tar.gz /usr/local/
-   tar -zxf apache-tomcat-8.5.58.tar.gz
-   mv apache-tomcat-8.5.58 tomcat8
+   wget https://dlcdn.apache.org/tomcat/tomcat-8/v8.5.78/bin/apache-tomcat-8.5.78.tar.gz --no-check-certificate
+   mv apache-tomcat-8.5.78.tar.gz /usr/local/
+   tar -zxf apache-tomcat-8.5.78.tar.gz
+   mv apache-tomcat-8.5.78 tomcat8
 2. 下载war包并把 jenkins.war 放在 Tomcat 解压目录/webapps 目录下
    wget http://updates.jenkins-ci.org/download/war/2.235.1/jenkins.war
    mv jenkins.war /usr/local/tomcat8/webapps
@@ -1590,7 +1590,7 @@ Nginx 是一款高性能的Web服务器软件.
 	cp -r /usr/local/nginx/nginx-1.12.0 .
 	useradd nginx
 	cd nginx-1.12.0
-	./configure --prefix=/usr/local/nginx --user=ngin --with-http_ssl_module
+	./configure --prefix=/usr/local/nginx --user=nginx --with-http_ssl_module
 	make
 	make install
 
@@ -1617,140 +1617,58 @@ Nginx 是一款高性能的Web服务器软件.
     vim /etc/init.d/nginx
     源地址：https://www.nginx.com/resources/wiki/start/topics/examples/redhatnginxinit/
     找到nginx="..." NGINX_CONF_FILE="..." 这两句改成你自己的目录位置
-    
-        #!/bin/sh
-        # nginx - this script starts and stops the nginx daemon
-        #
-        # chkconfig:   - 85 15
-        # description:  NGINX is an HTTP(S) server, HTTP(S) reverse \
-        #               proxy and IMAP/POP3 proxy server
-        # processname: nginx
-        # config:      /usr/local/tools/nginx/nginx-1.14.2/conf/nginx.conf
-        # config:      /etc/sysconfig/nginx
-        # pidfile:     /usr/local/tools/nginx/nginx-1.14.2/logs/nginx.pid
-    
-        # Source function library.
-        . /etc/rc.d/init.d/functions
-    
-        # Source networking configuration.
-        . /etc/sysconfig/network
-    
-        # Check that networking is up.
-        [ "$NETWORKING" = "no" ] && exit 0
-    
-        # nginx 文件的目录 需要修改为自己的位置
-        nginx="/usr/local/developtools/nginx/sbin/nginx"
-        prog=$(basename $nginx)
-        
-        # nginx 配置文件的位置 需要修改为自己的位置
-        NGINX_CONF_FILE="/usr/local/developtools/nginx/conf/nginx.conf"
-    
-        [ -f /etc/sysconfig/nginx ] && . /etc/sysconfig/nginx
-    
-        lockfile=/usr/local/tools/nginx/nginx-1.14.2/logs/lock/subsys/nginx
-    
-        make_dirs() {
-        # make required directories
-        user=`$nginx -V 2>&1 | grep "configure arguments:.*--user=" | sed 's/[^*]*--user=\([^ ]*\).*/\1/g' -`
-        if [ -n "$user" ]; then
-            if [ -z "`grep $user /etc/passwd`" ]; then
-                useradd -M -s /bin/nologin $user
-            fi
-            options=`$nginx -V 2>&1 | grep 'configure arguments:'`
-            for opt in $options; do
-                if [ `echo $opt | grep '.*-temp-path'` ]; then
-                    value=`echo $opt | cut -d "=" -f 2`
-                    if [ ! -d "$value" ]; then
-                        # echo "creating" $value
-                        mkdir -p $value && chown -R $user $value
-                    fi
-                fi
-            done
-            fi
-        }
-    
-        start() {
-            [ -x $nginx ] || exit 5
-            [ -f $NGINX_CONF_FILE ] || exit 6
-            make_dirs
-            echo -n $"Starting $prog: "
-            daemon $nginx -c $NGINX_CONF_FILE
-            retval=$?
-            echo
-            [ $retval -eq 0 ] && touch $lockfile
-            return $retval
-        }
-    
-        stop() {
-            echo -n $"Stopping $prog: "
-            killproc $prog -QUIT
-            retval=$?
-            echo
-            [ $retval -eq 0 ] && rm -f $lockfile
-            return $retval
-        }
-    
-        restart() {
-            configtest || return $?
-            stop
-            sleep 1
-            start
-        }
-    
-        reload() {
-            configtest || return $?
-            echo -n $"Reloading $prog: "
-            killproc $nginx -HUP
-            RETVAL=$?
-            echo
-        }
-    
-        force_reload() {
-            restart
-        }
-    
-        configtest() {
-        $nginx -t -c $NGINX_CONF_FILE
-        }
-    
-        rh_status() {
-            status $prog
-        }
-    
-        rh_status_q() {
-            rh_status >/dev/null 2>&1
-        }
-    
-        case "$1" in
-            start)
-                rh_status_q && exit 0
-                $1
-                ;;
-            stop)
-                rh_status_q || exit 0
-                $1
-                ;;
-            restart|configtest)
-                $1
-                ;;
-            reload)
-                rh_status_q || exit 7
-                $1
-                ;;
-            force-reload)
-                force_reload
-                ;;
-            status)
-                rh_status
-                ;;
-            condrestart|try-restart)
-                rh_status_q || exit 0
-                    ;;
-            *)
-                echo $"Usage: $0 {start|stop|status|restart|condrestart|try-restart|reload|force-reload|configtest}"
-                exit 2
+
+
+-----
+        fix - 2022-05-12
+
+        #!/bin/bash
+        #chkconfig 2345 99 20
+        #2345表示系统运行级别
+        #99表示启动优先级
+        #20表示关闭的优先级
+        nginx=/usr/local/nginx/sbin/nginx
+        case $1 in
+        start)
+        netstat -anptu|grep nginx
+        if [ $? -eq 0 ]; then
+        echo "nginx server is already running"
+        else
+        echo "nginx server begin start...."
+        $nginx
+
+        fi
+        ;;
+        stop)
+        $nginx -s stop
+        if [ $? -eq 0 ]; then
+        echo "nginx server is stop"
+        else
+        echo "nginx server stop fail,try again!"
+        fi
+        ;;
+        status)
+        netstat -anptu|grep nginx
+        if [ $? -eq 0 ]; then
+        echo "nginx server is running"
+        else
+        echo "nginx server is stoped"
+        fi
+        ;;
+        restart)
+        $nginx -s reload
+        if [ $? -eq 0 ]; then
+        echo "nginx server is begin restart"
+        else
+        echo "nginx server restart fail!"
+        fi
+        ;;
+        *)
+        echo "please enter {start|restart|status|stop}"
+        ;;
         esac
-    
+
+ --- 一下作废 通过手动启动 /etc/init.d/nginx start 
     配置启动脚本权限：chmod a+x /etc/init.d/nginx
     启动nginx: /etc/init.d/nginx start
     停止nginx: /etc/init.d/nginx stop
@@ -2237,7 +2155,11 @@ Redis 是一个基于内存的高性能的Key-Value非结构化数据库.
 5. 进入redis
 
     redis-cli
-    
+
+6. 修改配置
+
+    vim /etc/redis.conf
+
 ### 编译安装
 
 下载Redis
@@ -2624,30 +2546,30 @@ Tomcat 本身就是开放架构, 可以进行Session管理器的替换. Tomcat R
 
    > add.jsp
 
-   	<%@ page contentType="text/html; charset=utf-8"
-   	        pageEncoding="utf-8"%>
-   	<html>
-   	  <body>
-   	    <h1>218 Save Session</h1>
-   	    <%
-   	        session.setAttribute("message", "Hello World!");
-   	    %>
-   	  </body>
-   	</html>
+        <%@ page contentType="text/html; charset=utf-8"
+                pageEncoding="utf-8"%>
+        <html>
+        <body>
+            <h1>218 Save Session</h1>
+            <%
+                session.setAttribute("message", "Hello World!");
+            %>
+        </body>
+        </html>
 
    > get.jsp
 
-   	<%@ page contentType="text/html; charset=utf-8"
-   	        pageEncoding="utf-8"%>
-   	<html>
-   	  <body>
-   	    <h1>218 Get Session</h1>
-   	    <%
-   	        String str=(String)session.getAttribute("message");
-   	    %>
-   	    <%=str%> 
-   	  </body>
-   	</html>
+        <%@ page contentType="text/html; charset=utf-8"
+                pageEncoding="utf-8"%>
+        <html>
+        <body>
+            <h1>218 Get Session</h1>
+            <%
+                String str=(String)session.getAttribute("message");
+            %>
+            <%=str%> 
+        </body>
+        </html>
 
 > 集群中每个Tomcat都进行如上配置
 
@@ -2671,6 +2593,7 @@ Eclipse 需要 添加 subclipse 插件才能与SVN服务器进行通信。
 ### yum 安装
 
 yum install -y nodejs
+yum install -y npm
 
 ### 二进制源码安装
 
@@ -2998,6 +2921,10 @@ yum install -y unzip zip
 yum -y install libevent
 ```
 3. 安装libfastcommon-master
+
+链接
+https://github.com/happyfish100/libfastcommon
+
 ```shell
 解压刚刚上传的libfastcommon-master.zip
     unzip libfastcommon-master.zip
@@ -3007,7 +2934,11 @@ yum -y install libevent
 ./make.sh 
 ./make.sh install
 ```
-4. 安装fastdfs
+1. 安装fastdfs
+
+链接：
+https://sourceforge.net/projects/fastdfs/files/FastDFS%20Server%20Source%20Code/FastDFS%20Server%20with%20PHP%20Extension%20Source%20Code%20V5.08/
+
 ```shell
 tar -zxvf FastDFS_v5.08.tar.gz
 cd FastDFS
@@ -3027,7 +2958,7 @@ ll /etc/fdfs/
         -rw-r--r--. 1 root root 7927 10月 28 07:34 storage.conf.sample：是storage的配置文件模板
         -rw-r--r--. 1 root root 7200 10月 28 07:34 tracker.conf.sample：是tracker的配置文件模板
 
-5. 配置并启动tracker服务
+1. 配置并启动tracker服务
 FastDFS的tracker和storage在刚刚的安装过程中，都已经被安装了，因此我们安装这两种角色的方式是一样的。不同的是，两种需要不同的配置文件。
 要启动tracker，就修改刚刚看到的`tarcker.conf`，并且启动`fdfs_trackerd`脚本即可。
 1）首先将模板文件复制
@@ -3875,3 +3806,24 @@ netstat -anp|grep 8080
 输出结果：
 tcp 0 0 :::8080 ::: LISTEN 12006/java
 执行命令： ps -ef | grep 12006
+
+## 关机与重启
+
+关机命令：
+
+1、shutdown -h now 立刻关机(root用户使用)
+
+2、halt 立刻关机
+    
+        就是调用shutdown -h。halt执行时﹐杀死应用进程﹐执行sync系统调用﹐文件系统写操作完成后就会停止内核。
+
+3、poweroff 立刻关机
+
+        效果等同于shutdown -h now，在多用户模式下(Run Level 3）不建议使用。
+
+4. init 0
+如果是通过shutdown命令设置关机的话，可以用shutdown -c命令取消重启
+
+重启：
+- reboot
+- init 6
