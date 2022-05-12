@@ -2210,6 +2210,19 @@ Redis 是一个基于内存的高性能的Key-Value非结构化数据库.
 1. 安装
 
    yum -y install redis
+   如果报错
+   [root@localhost ~]# yum -y install redis
+        已加载插件：fastestmirror
+        Loading mirror speeds from cached hostfile
+        * base: ftp.sjtu.edu.cn
+        * extras: mirrors.huaweicloud.com
+        * updates: ftp.sjtu.edu.cn
+        没有可用软件包 redis。
+        错误：无须任何处理
+
+   yum install epel-release    --下载fedora的epel仓库
+
+   在此安装 yum -y install redis
 
 2. 启动
 
@@ -2217,6 +2230,14 @@ Redis 是一个基于内存的高性能的Key-Value非结构化数据库.
 
 3. 重启等...
 
+4. 自启动
+
+    systemctl enable redis.service
+
+5. 进入redis
+
+    redis-cli
+    
 ### 编译安装
 
 下载Redis
