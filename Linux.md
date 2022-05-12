@@ -472,6 +472,8 @@ yum安装git被安装在/usr/libexec/git-core目录下
 
 4. 登录相应的代码托管平台，添加刚刚复制的公钥即可
 
+参考：
+https://blog.csdn.net/wh_19910525/article/details/7433164?spm=1001.2101.3001.6661.1&utm_medium=distribute.pc_relevant_t0.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7Edefault-1-7433164-blog-105194274.pc_relevant_without_ctrlist_v4&depth_1-utm_source=distribute.pc_relevant_t0.none-task-blog-2%7Edefault%7EBlogCommendFromBaidu%7Edefault-1-7433164-blog-105194274.pc_relevant_without_ctrlist_v4&utm_relevant_index=1
 
 ## 搭建gitblit
 
@@ -750,7 +752,7 @@ yum安装git被安装在/usr/libexec/git-core目录下
    tar -zxf apache-tomcat-8.5.78.tar.gz
    mv apache-tomcat-8.5.78 tomcat8
 2. 下载war包并把 jenkins.war 放在 Tomcat 解压目录/webapps 目录下
-   wget http://updates.jenkins-ci.org/download/war/2.235.1/jenkins.war
+   wget http://updates.jenkins-ci.org/download/war/2.347/jenkins.war
    mv jenkins.war /usr/local/tomcat8/webapps
 3. 启动tomcat
    ./startup.sh
@@ -2159,6 +2161,25 @@ Redis 是一个基于内存的高性能的Key-Value非结构化数据库.
 6. 修改配置
 
     vim /etc/redis.conf
+
+7. 开启6379
+
+    iptables -I INPUT -p tcp --dport 6379 -j ACCEPT
+
+8. 开启6380
+
+    iptables -I INPUT -p tcp --dport 6380 -j ACCEPT
+
+9. 保存
+
+    iptables save
+
+10. centos 7下执行
+
+    service iptables save
+
+参考：
+https://blog.csdn.net/xiaoyuer_wangyu/article/details/123720022
 
 ### 编译安装
 
