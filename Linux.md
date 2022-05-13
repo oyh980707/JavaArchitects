@@ -541,15 +541,50 @@ https://blog.csdn.net/wh_19910525/article/details/7433164?spm=1001.2101.3001.666
 
 7. 利用wget下载gitlab镜像
 
-    wget https://mirrors.tuna.tsinghua.edu.cn/gitlab-ce/yum/el7/gitlab-ce-10.0.0-ce.0.el7.x86_64.rpm
+    wget https://mirrors.tuna.tsinghua.edu.cn/gitlab-ce/yum/el7/gitlab-ce-13.6.7-ce.0.el7.x86_64.rpm --no-check-certificate
 
 8. 安装gitlab
 
-    rpm -i --prefix=/usr/local/developtools/gitlab gitlab-ce-10.0.0-ce.0.el7.x86_64.rpm
+    rpm -i --prefix=/usr/local/gitlab gitlab-ce-10.0.0-ce.0.el7.x86_64.rpm
     在这里会报错有个依赖必须安装
     yum install policycoreutils-python
 
-9. 修改gitlab配置文件指定服务器ip和自定义端口：
+
+    注意：这里会报这样的错
+
+            [root@localhost ~]# rpm -i --prefix=/usr/local/gitlab gitlab-ce-13.12.9-ce.0.el7.x86_64.rpm 
+            警告：gitlab-ce-13.12.9-ce.0.el7.x86_64.rpm: 头V4 RSA/SHA1 Signature, 密钥 ID f27eab47: NOKEY
+
+            /var/tmp/rpm-tmp.wPfkFE:行114: /opt/gitlab/embedded/bin/symlink_ctl_cmds: 没有那个文件或目录
+            cp: 无法获取"/opt/gitlab/etc/gitlab.rb.template" 的文件状态(stat): 没有那个文件或目录
+            sed：无法读取 /etc/gitlab/gitlab.rb：没有那个文件或目录
+            chmod: 无法访问"/etc/gitlab/gitlab.rb": 没有那个文件或目录
+            /var/tmp/rpm-tmp.2ETGGO:行69: /opt/gitlab/embedded/bin/symlink_ctl_cmds: 没有那个文件或目录
+            /var/tmp/rpm-tmp.2ETGGO:行70: /opt/gitlab/bin/gitlab-ctl: 没有那个文件或目录
+            警告：%posttrans(gitlab-ce-13.12.9-ce.0.el7.x86_64) 脚本执行失败，退出状态码为 127
+
+    万一不行，必杀：
+
+        sudo yum install -y curl policycoreutils-python openssh-server
+        curl https://packages.gitlab.com/install/repositories/gitlab/gitlab-ee/script.rpm.sh | sudo bash
+        yum install -y gitlab-ee
+
+        查看状态：
+        gitlab-ctl status
+        修改配置后的初始化
+        gitlab-ctl reconfigure
+        启动
+        sudo gitlab-ctl start
+        停止
+        sudo gitlab-ctl stop
+        重启
+        sudo gitlab-ctl restart
+        开机启动
+        systemctl enable gitlab-runsvdir.service
+        参考：https://blog.csdn.net/Doudou_Mylove/article/details/123518244
+
+
+1. 修改gitlab配置文件指定服务器ip和自定义端口：
 
     vim /etc/gitlab/gitlab.rb
 
@@ -559,7 +594,7 @@ https://blog.csdn.net/wh_19910525/article/details/7433164?spm=1001.2101.3001.666
     postgresql['shared_buffers'] = "256MB"
     postgresql['max_connections'] = 200
 
-10. 重置并启动GitLab
+2.  重置并启动GitLab
 
     gitlab-ctl reconfigure
     gitlab-ctl restart
