@@ -2781,19 +2781,19 @@ jenkins搭建web vue项目的自动部署
 创建用户：
 
 ```sh
-useradd leyou
+useradd es
 ```
 
 设置密码：
 
 ```
-passwd leyou
+passwd es
 ```
 
 切换用户：
 
 ```
-su - leyou
+su - es
 ```
 
 2. 利用filezilla上传elasticsearch安装包和elasticsearch-analysis-ik ik分词插件
@@ -2830,14 +2830,14 @@ mv elasticsearch-6.3.0/ elasticsearch
         vim elasticsearch.yml
         
         修改数据和日志目录：
-        path.data: /home/leyou/elasticsearch/data # 数据目录位置
-        path.logs: /home/leyou/elasticsearch/logs # 日志目录位置
+        path.data: /home/es/elasticsearch/data # 数据目录位置
+        path.logs: /home/es/elasticsearch/logs # 日志目录位置
         
         把data和logs目录修改指向了elasticsearch的安装目录。但是这两个目录并不存在，因此我们需要创建出来。
         进入elasticsearch的根目录，然后创建：
         
-        mkdir -p /home/leyou/elasticsearch/data
-        mkdir -p /home/leyou/elasticsearch/logs
+        mkdir -p /home/es/elasticsearch/data
+        mkdir -p /home/es/elasticsearch/logs
         
         修改绑定的ip：
         network.host: 0.0.0.0 # 绑定到0.0.0.0，允许任何ip来访问
@@ -2879,9 +2879,9 @@ bootstrap.system_call_filter: false
 
 再次启动，又出错了：
 ```
-[1]: max file descriptors [4096] for elasticsearch process likely too low, increase to at least [65536]
+[1]: max file descriptors [4096] for elasticsearch process is too low, increase to at least [65536]
 ```
-我们用的是leyou用户，而不是root，所以文件权限不足。
+我们用的是es用户，而不是root，所以文件权限不足。
 
 首先用root用户登录，然后修改配置文件:
 ```
@@ -2889,13 +2889,12 @@ vim /etc/security/limits.conf
 ```
 添加下面的内容：
 ```
-* soft nofile 65536
+# es 是用户
+es soft nofile 65536
+es hard nofile 65536
 
-* hard nofile 131072
-
-* soft nproc 4096
-
-* hard nproc 4096
+es soft nproc 4096
+es hard nproc 4096
 ```
 
 错误3：线程数不够
@@ -2909,11 +2908,11 @@ vim /etc/security/limits.d/90-nproc.conf
 ```
 修改下面的内容：
 ```
-* soft nproc 1024
+es soft nproc 1024
 ```
 改为：
 ```
-* soft nproc 4096
+es soft nproc 4096
 ```
 
 错误4：进程虚拟内存
@@ -2936,6 +2935,12 @@ sysctl -p
 最后基本可以启动成功了，后台启动`./elasticsearch &`，启动后通过`http://host:9200`访问
 如果访问不了可能是防火墙阻挡了。
 root用户打开防火墙
+
+iptables用如下命令：
+iptables -A INPUT -p tcp --dport 9200 -j ACCEPT
+service iptables save
+
+firewall用如下命令
 firewall-cmd --permanent --add-port=9200/tcp
 重启
 firewall-cmd --reload
@@ -2949,6 +2954,33 @@ Lucene的IK分词器早在2012年已经没有维护了，现在我们要使用�
 ```
 unzip elasticsearch-analysis-ik-6.3.0.zip -d ik-analyzer
 ```
+
+# ES Head
+
+git clone https://github.com/mobz/elasticsearch-head.git
+cd elasticsearch-head
+npm install --registry=https://registry.npm.taobao.org
+npm run start
+
+解决es head 跨域问题：
+https://blog.csdn.net/weixin_43946883/article/details/103903194
+
+修改elasticsearch配置文件：elasticsearch.yml，增加以下两句命令：
+http.cors.enabled: true
+http.cors.allow-origin: “*”
+重启即可生效
+
+# Kibana
+
+下载：
+https://artifacts.elastic.co/downloads/kibana/kibana-6.6.1-darwin-x86_64.tar.gz
+
+解压后，进入主目录的conf目录下修改配置kibana.yml：
+
+        打开如下配置，es的地址端口
+        elasticsearch.hosts: ["http://192.168.56.111:9200"]
+
+
 
 # FastDFS
 
@@ -3677,7 +3709,7 @@ esl-erlang-compat-R14B-1.el6.noarch.rpm
 **前提得有jdk**
 
 1. 下载压缩包
-   wget https://downloads.apache.org/zookeeper/zookeeper-3.5.8/apache-zookeeper-3.5.8-bin.tar.gz
+   wget https://downloads.apache.org/zookeeper/zookeeper-3.8.0/apache-zookeeper-3.8.0-bin.tar.gz
 
 2. 解压，并改名，进入conf目录，拷贝配置文件
    mv apache-zookeeper-3.5.8-bin/ zookeeper
@@ -3883,3 +3915,27 @@ tcp 0 0 :::8080 ::: LISTEN 12006/java
 重启：
 - reboot
 - init 6
+
+
+
+# Linux常见问题
+
+1. 解决 Linux 系统，出现“不在sudoers文件中，此事将被报告”的问题
+
+使用个人用户（非root用户）时，在执行其他命令时，使用sudo命令来执行的时候，需要验证当前用户的密码，输入了之后，提示“xxx 不在sudoers文件中，此事将被报告”
+分析原因，主要是权限不够，需要提升权限。
+
+
+root管理员身份修改/etc/sudoers 文件
+注：该文件需要加写权限
+chmod u+w /etc/sudoers
+
+vim /etc/sudoers
+
+在root ALL=(ALL) ALL 的下一行添加代码：xxx ALL=(ALL) ALL
+
+保存退出
+
+置会原来的权限：chmod 440 /etc/sudoers
+
+退出即可使用sudo了
