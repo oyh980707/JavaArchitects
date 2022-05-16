@@ -742,7 +742,21 @@ https://blog.csdn.net/wh_19910525/article/details/7433164?spm=1001.2101.3001.666
     </mirrors>
     ```
 
+# groovy 安装
+下载
+www.groovy-lang.org/download.html
+配置环境变量
+mac:
+vim ~/.bash_profile
 
+    # groovy environment
+    export GRADLE_HOME=/Users/oyh.jerry/developtools/gradle-4.4.1/bin
+
+    :wq
+
+source ~/.bash_profile
+
+groovy -v
 
 ## nexus安装与配置
 
