@@ -1343,7 +1343,86 @@ rm -rf $DATETIME
 echo "=====end migrate"
 ```
 
+# Mysql 主备搭建
 
+两台机器
+192.168.56.104
+192.168.56.106
+
+说明：可以建立一个专门的用户来同步数据用，这里省略，使用root用户
+
+104 主机器：
+
+vim /etc/my.cnf
+
+        [mysqld]
+        ##  binlog文件名
+        log_bin = mysql-bin
+        ## MYSQL实例id, 不能重复
+        server_id = 10
+        ## 仅将以下数据库记录binlog, 不记录的则不会同步
+        binlog_do_db = ms
+        ## 以下是推荐配置, 且是默认配置
+        ## sync_binlog = 1
+        ## innodb_flush_log_at_trx_commit = 1
+        ## innodb_support_xa = on
+        ## binlog_format = row
+
+
+106 备机器：
+
+vim /etc/my.cnf
+
+        [mysqld]
+        log_bin = mysql-bin
+        server_id = 20
+        ## 中继日志
+        relay_log = /var/log/mariadb/mariadb-relay-bin
+        ## 允许备库将重放事件记录到自身的binlog中
+        log_slave_updates = 1
+        ## 只读, 也可以不设置
+        read_only = 1
+        ## 需要同步的数据库, 逗号分隔(不添加代表同步所有)
+        replicate-do-db = ms
+        ## 不需要同步的表, 多个需要分别设置
+        ## replicate-ignore-table = dbname.table_name1
+        ## replicate-ignore-table = dbname.table_name2
+
+注意: 如果主库已经运行了一段时间,而不是新安装的。那么需要先将主库克隆一份到备库，比如使用mysqldump转存一份到备库上
+
+接下来告诉106备库机器如何同步，开启同步
+CHANGE MASTER TO MASTER_HOST = '192.168.56.114', MASTER_USER = 'root', MASTER_PASSWORD = '980707', MASTER_LOG_FILE = 'mysql-bin.000001', MASTER_LOG_POS = 0;
+
+没有错误，直接开启备份：start slave;
+
+查看：SHOW PROCESSLIST;
+主库
++----+------+----------------------+------+-------------+------+-----------------------------------------------------------------------+------------------+----------+
+| Id | User | Host                 | db   | Command     | Time | State                                                                 | Info             | Progress |
++----+------+----------------------+------+-------------+------+-----------------------------------------------------------------------+------------------+----------+
+| 18 | root | 192.168.56.116:44564 | NULL | Binlog Dump |  871 | Master has sent all binlog to slave; waiting for binlog to be updated | NULL             |    0.000 |
++----+------+----------------------+------+-------------+------+-----------------------------------------------------------------------+------------------+----------+
+
+备库：
++----+-------------+----------------------+------+---------+------+-----------------------------------------------------------------------------+------------------+----------+
+| Id | User        | Host                 | db   | Command | Time | State                                                                       | Info             | Progress |
++----+-------------+----------------------+------+---------+------+-----------------------------------------------------------------------------+------------------+----------+
+|  4 | system user |                      | NULL | Connect |  770 | Waiting for master to send event                                            | NULL             |    0.000 |
+|  5 | system user |                      | NULL | Connect |   10 | Slave has read all relay log; waiting for the slave I/O thread to update it | NULL             |    0.000 |
+|  7 | root        | 192.168.56.103:36830 | NULL | Query   |    0 | NULL                                                                        | SHOW PROCESSLIST |    0.000 |
++----+-------------+----------------------+------+---------+------+-----------------------------------------------------------------------------+------------------+----------+
+
+
+备注：start slave 报错：ERROR 1201 (HY000): Could not initialize master info structure; more error messages can be found in the MySQL error log
+
+重置一下 重新启动
+stop slave;
+
+reset slave;
+
+CHANGE MASTER TO MASTER_HOST = '192.168.56.114', MASTER_USER = 'root', MASTER_PASSWORD = '980707', MASTER_LOG_FILE = 'mysql-bin.000001', MASTER_LOG_POS = 0;
+
+start slave;
 
 ## 部署Web项目到服务器
 
@@ -2226,6 +2305,13 @@ Redis 是一个基于内存的高性能的Key-Value非结构化数据库.
 10. centos 7下执行
 
     service iptables save
+
+1.  ip地址的配置，便于其他服务器连接
+
+    vim /etc/redis.conf
+    修改bind
+    若任何可以访问直接注释
+
 
 参考：
 https://blog.csdn.net/xiaoyuer_wangyu/article/details/123720022
