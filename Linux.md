@@ -3070,6 +3070,8 @@ http.cors.enabled: true
 http.cors.allow-origin: “*”
 重启即可生效
 
+参考：https://blog.csdn.net/pointer_sky/article/details/107788422
+
 # Kibana
 
 下载：
