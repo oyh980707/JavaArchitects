@@ -19,9 +19,13 @@ Bochs是一个x86硬件平台的开源模拟器
 LDFLAGS='-pthread'
 ```
 
-3. 安装(make install)
+3. 安装
 
-4. 常见错误
+```shell
+make install
+```
+
+4. 安装中的常见错误
 
 ```txt
 gtk_enh_dbg_osdep.cc:20:21: 致命错误：gtk/gtk.h：没有那个文件或目录
@@ -36,6 +40,34 @@ yum install gtk2 gtk2-devel gtk2-devel-docs
 vim Makefile 文件， 在 92 行增加 -lphread.然后重新 make
 ```
 
+### 基本使用
+
+bochs的调试命令分为"Debugger control"类，"Execution control"类，"Breakpoint control"类，"CPU and memory control"类
+
+- "Debugger control"类
+```text
+q|quit|exit 推出调试状态，关闭虚拟机
+```
+
+- "Execution control"类
+```text
+s|step [count] 执行count条指令
+p|n|next 执行1条指令，若是函数，整个函数当作整体执行
+```
+
+- "Breakpoint control"类
+```text
+vb|vbreak [seg: off] 以虚拟地址添加断点，程序执行到此虚拟地址时停下来
+lb|lbreak [addr] 以线性地址添加断点，程序执行到此线性地址时停下来
+pb|pbreak|b|break [addr] 以物理地址添加断点，程序执行到此物理地址时会停下来
+d|del|delete [n] 删除某断点
+```
+
+- "CPU and memory control"类
+```text
+x/nuf [line_addr] 显示线性地址的内容。n、u、f是三个参数，可选。默认n=1,u=4字节，f是十六进制
+r|reg|regs|registers 显示8个通用寄存器的值 + eflag寄存器+eip寄存器
+```
 
 ### 配置文件
 
@@ -106,20 +138,24 @@ Next at t=0
 
 ```
 
-## 主引导程序
+## 编写简单的主引导程序(MBR)
 
 1. 下载安装汇编编译器
 
+```shell
 wget https://www.nasm.us/pub/nasm/releasebuilds/2.14/nasm-2.14.tar.gz --no-check-certificate
 tar -xvzf nasm-2.14.tar.gz
 cd nasm-2.14
 ./configure
 make
 make install
+```
 
-2. 编码主引导MBR程序
-vim mbr.S
-```txt
+2. 简单编码主引导MBR程序
+```shell
+vim mbr.asm
+```
+```asm
 ; 主引导程序MBR
 ; SECTION是伪指令，cpu不运行，只是方便程序员规划程序分段使用
 ; `vstart=0x7c00`表示在程序编译时将起始地址编译为0x7c00
@@ -138,7 +174,7 @@ SECTION MBR vstart=0x7c00 ; =前后不能有空格
     mov gs,ax
         
 ; 使用10号中断的0x06功能号，进行窗口上卷清屏，避免BIOS检测信息影响显示
-	mov ax,0600h		; ah存放将要调用的中断子功能号
+    mov ax,0600h		; ah存放将要调用的中断子功能号
     mov bx,0700h
     mov cx,0			; (CL,CH)＝窗口左上角的（X,Y）位置
     mov dx,184fh		; (DL,DH)＝窗口右下角的（X,Y）位置(80,25)
@@ -166,34 +202,42 @@ SECTION MBR vstart=0x7c00 ; =前后不能有空格
 ```
 
 3. 编译汇编程序
-nasm -o mbr.bin mbr.S
+
+```shell
+nasm -o mbr.bin mbr.asm
+```
 
 4. 将编译好的二进制数据写入到用来启动的镜像文件
 
+```shell
 dd if=/root/bochs/mbr.bin of=/root/bochs/hd60M.img bs=512 count=1 conv=notrunc
+```
 
+```text
 结果如下：
 记录了1+0 的读入
 记录了1+0 的写出
 512字节(512 B)已复制，0.0002695 秒，1.9 MB/秒
+```
 
 5. 启动
 
-bochs根目录下：bin/bochs -f bochsrc.disk
+```shell
+# bochs根目录下
+bin/bochs -f bochsrc.disk
+```
 
-6. 在bochs控制台输入 c + 回车 表示continue 继续下一步调试
-
-可以看到bochs所模拟的机器开始运行了
+6. 在bochs控制台输入 c + 回车 表示continue 继续下一步调试，可以看到bochs所模拟的机器开始运行了
 
 
 
-## 实模式
+## 实模式 —待整理
 
 实模式是指 8086 CPU 的寻址方式、寄存器大小、指令用法等，用来反应CPU在该环境下如何工作的概念
 
 
 
-## 汇编语言 介绍
+## 汇编语言 介绍 —待整理
 ### 8086 的汇编指令
 
 
@@ -317,7 +361,7 @@ start:
 ```
 则操作数位128 ， 编译就会报错
 1jmp.asm:2: error: short jump is out of range
-1jmp.asm:2: warning: byte data exceeds bounds \[-w+number-overflow\]
+1jmp.asm:2: warning: byte data exceeds bounds [-w+number-overflow]
 去掉short就不会报错，改成near或者不加，让其成为相对近转移
 
 16位实模式相对近转移的源码案例：2jmp.asm
@@ -363,6 +407,167 @@ start:
 
 
 
+## 硬盘的介绍 —待整理
 
 
+## 重改MBR实现加载loader
 
+boot.inc文件
+```asm
+;----------- loader 和 kernel ---------
+LOADER_BASE_ADDR equ 0x900
+LOADER_START_SECTOR equ 0x2
+```
+
+MBR文件
+```asm
+; 主引导程序MBR
+; SECTION是伪指令，cpu不运行，只是方便程序员规划程序分段使用
+; `vstart=0x7c00`表示在程序编译时将起始地址编译为0x7c00
+; SS存放栈顶的段地址，SP存放栈顶的偏移地址。在任何时刻 ，SS:SP都是指向栈顶元素 
+; CS存放内存中代码段入口的段基址，CS:IP表示下一条要运行的指令内存地址
+%include "boot.inc"
+SECTION MBR vstart=0x7c00 ; =前后不能有空格
+    mov ax,cs			; 由于BIOS是通过`jmp 0:Ox7c00`转到MBR的，故cs此时为0
+    mov ds,ax			; 段寄存器不能使用立即数进行赋值，可以使用通用寄存器ax
+    mov es,ax
+    mov ss,ax
+    mov fs,ax
+	mov sp,0x7c00
+    mov ax,0xb800
+    mov gs,ax
+
+
+mov ax,0600h		; ah存放将要调用的中断子功能号
+    mov bx,0700h
+    mov cx,0			; (CL,CH)＝窗口左上角的（X,Y）位置
+    mov dx,184fh		; (DL,DH)＝窗口右下角的（X,Y）位置(80,25)
+    int 10h				; 调用中断
+
+; 输出背景色是绿色，前景色是红色，并且跳动的字符串为“1 MBR”
+    mov byte [gs:0x00],'1' 	;把字符1的ASCII写入以gs:0x00为起始，大小为1字节的内存
+    mov byte [gs:0x01],0xA4	; A表示绿色背景闪烁，4表示前景色为红色
+    
+    mov byte [gs:0x02],' '
+    mov byte [gs:0x03],0xA4
+    
+    mov byte [gs:0x04],'M'
+    mov byte [gs:0x05],0xA4
+    
+    mov byte [gs:0x06],'B'
+    mov byte [gs:0x07],0xA4
+    
+    mov byte [gs:0x08],'R'
+    mov byte [gs:0x09],0xA4
+
+    mov eax, LOADER_START_SECTOR ;起始扇区LBA地址
+    mov bx, LOADER_BASE_ADDR ;写入的地址
+    mov cx, 1 ;待读入的扇区数
+
+    call rd_disk_m_16 ;读取磁盘
+
+    jmp LOADER_BASE_ADDR
+
+;函数，读取硬盘n个扇区
+rd_disk_m_16:
+    mov esi, eax ; 保存eax
+    mov di, cx ; 保存cx
+    
+    ; 1. 设置读取扇区数
+    mov dx, 0x1f2 ;0x1f2 是IO端口，读写的功能：sector count
+    mov al, cl ; 读取的扇区数
+    out dx, al ; 写入读取的扇区数
+    mov eax, esi ; 恢复ax
+
+    ; 2. LBA地址存入0x1f3 ~ 0x1f6
+
+    mov dx, 0x1f3
+    out dx, al
+
+    mov cl, 8
+    shr eax, cl
+    mov dx, 0x1f4
+    out dx, al
+
+    shr eax, cl
+    mov dx, 0x1f5
+    out dx, al
+
+    shr eax, cl
+    and al, 0x0f
+    or al, 0xe0
+    mov dx, 0x1f6
+    out dx, al
+
+    ; 3. 向0x1f7端口写入读入命令, 0x20是读取命令
+    mov dx, 0x1f7
+    mov al, 0x20
+    out dx, al
+
+    ; 4. 检查磁盘状态
+.not_ready:
+    nop ; 相当于sleep
+    in al, dx
+    and al, 0x88 ; 第三位为1表示磁盘控制器已准备好数据传输，第七位表示磁盘忙
+    cmp al, 0x08 ; 
+    jnz .not_ready ; 若未准备好继续等
+
+    ; 5. 从0x1f0端口读取数据
+    mov ax, di
+    mov dx, 256
+    mul dx
+    mov cx, ax
+    mov dx, 0x1f0
+
+.go_on_read:
+    in ax, dx
+    mov [bx], ax
+    add bx, 2
+    loop .go_on_read
+    ret
+
+; $表示本行指令所在的地址，$$表示本section的起始地址，$-$$表示执行代码行到段首的偏移量
+    times 510-($-$$) db 0 ; 将剩余字节用0进行填充
+    db 0x55,0xaa ; 最后两个字节填充MBR的标识
+```
+
+编译，将 boot.inc 包含进来
+
+```shell
+nasm -I include/ -o mbr.bin mbr.asm
+```
+
+模拟一个loader加载器
+```asm
+; 内核加载器loader
+%include "boot.inc"
+section loader vstart=LOADER_BASE_ADDR
+; 输出背景色是绿色，前景色是红色，并且跳动的字符串为“2 LOADER”
+    mov byte [gs:0x00],'2'
+    mov byte [gs:0x01],0xA4; A表示绿色背景闪烁，4表示前景色为红色
+    
+    mov byte [gs:0x02],' '
+    mov byte [gs:0x03],0xA4
+    
+    mov byte [gs:0x04],'L'
+    mov byte [gs:0x05],0xA4
+    
+    mov byte [gs:0x06],'O'
+    mov byte [gs:0x07],0xA4
+    
+    mov byte [gs:0x08],'D'
+    mov byte [gs:0x09],0xA4
+    
+    mov byte [gs:0x0a],'E'
+    mov byte [gs:0x0b],0xA4
+    
+    mov byte [gs:0x0c],'R'
+    mov byte [gs:0x0d],0xA4
+    
+    jmp $			; 通过死循环使程序悬停在此
+```
+
+编译，写到镜像文件的第2个扇区，第0个扇区是MBR引导程序，第1个扇区空出来
+```shell
+dd if=/root/bochs/loader.bin of=/root/bochs/hd60M.img bs=512 count=1 seek=2 conv=notrunc
+```
