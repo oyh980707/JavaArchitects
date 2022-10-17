@@ -1953,7 +1953,6 @@ bin/bochs -f bochsrc.disk
 <bochs:3> 
 ```
 
-
 #### 启用分页机制
 
 内存为什么要分页
@@ -1988,7 +1987,7 @@ bin/bochs -f bochsrc.disk
 ![](./images/%E5%AF%BB%E6%89%BE%E5%90%88%E9%80%82%E7%9A%84%E5%86%85%E5%AD%98%E5%9D%97%E5%B0%BA%E5%AF%B8.png)
 
 - 32 位地址表示 4GB 空间，可以将 32 位地址分成高低两部分，低地址部分是内存块大小，高地址部分是内存块数量，它们是这样一种关系：内存块数*内存块大小=4GB。滑块指向第12位，内存块大小则为2的12次方，即4KB，内存块数量则为2的20次方 1M，即1048576个。这里所说的内存块，其官方名称是页， CPU中采用的页大小恰恰就是 4KB。
-- 右边第 11~0位用来表示页的大小，也就是这12位可以作为页内寻址，寻址范围4KB。左边第31~12位用来表示页的数量，同样这20位也用来索引一个页(索引范围 0~Oxfffff)，表示第几个页。
+- 右边第 11 ~ 0位用来表示页的大小，也就是这12位可以作为页内寻址，寻址范围4KB。左边第31~12位用来表示页的数量，同样这20位也用来索引一个页(索引范围 0~Oxfffff)，表示第几个页。
 
 - 页是地址空间的计量单位，并不是专属物理地址或线性地址，只要是4KB的地址空间都可以称为一页，所以线性地址的一页也要对应物理地址的一页。一页大小为4KB，4GB地址空间被划分成 4GB/4KB=1M 个页，也就是 4GB 空间中可以容纳 1048576 个页，页表中自然也要有 1048576 个页表项，这就是一级页表。
 
@@ -2043,12 +2042,427 @@ bin/bochs -f bochsrc.disk
 ![](./images/%E9%A1%B5%E7%9B%AE%E5%BD%95%E5%9F%BA%E5%9D%80%E5%AF%84%E5%AD%98%E5%99%A8%20PDBR%20(%E6%8E%A7%E5%88%B6%E5%AF%84%E5%AD%98%E5%99%A8cr3).png)
 控制寄存器有cr0 ~ cr7，cr3寄存器是其中之一，控制寄存器 cr3 用于存储页表物理地址，所以 cr3 寄存器又称为页目录基址寄存器( Page Directorγ Base Register, PDBR)
 
+规划页表之操作系统与用户进程关系
+
+- 页表的设计是内存分布来决定的，在用户进程4GB虚拟地址空间的高3GB以上的部分划分给操作系统，0~3GB是用户进程自己的虚拟空间。
+- 为了实现操共享操作系统，让所有用户进程3GB ~ 4GB的虚拟地址空间都指向同一个操作系统，也就是所有进程的虚拟地址3GB ~ 4GB本质上都是指向同一片物理地址，只要保证所有用户进程虚拟地址空间 3GB ~ 4GB 对应的页表项中所记录的物理页地址是相同的就行啦。
+
+```text
+0~1G： 0x00000000~0x3FFFFFFFF
+1~2G： 0x40000000~0x7FFFFFFFF
+2~3G： 0x80000000~0xBFFFFFFFF
+3~4G： 0xC0000000~0xFFFFFFFFF
+```
+
 启用分页机制，我们要按顺序做好三件事
 1. 准备好页目录表及页表
 2. 将页表地址写入控制寄存器cr3
 3. 寄存器cr0的PG位置1
 
-##### 规划页表之操作系统与用户进程关系
+分页机制得有页目录表，页目录表中的是页目录项，其中记录的是页表的物理地址及相关属性，所以还得有页表。我们实际的页目录表及页表也将按照此空间位置部署，地址的最下面是页目录表，往上依次是页表。
+![](./images/%E9%A1%B5%E7%9B%AE%E5%BD%95%E8%A1%A8%E4%B8%8E%E9%A1%B5%E8%A1%A8%E7%9A%84%E5%85%B3%E7%B3%BB.png)
 
-- 页表的设计是内存分布来决定的，在用户进程4GB虚拟地址空间的高3GB以上的部分划分给操作系统，0~3GB是用户进程自己的虚拟空间。
-- 为了实现操共享操作系统，让所有用户进程3GB ~ 4GB的虚拟地址空间都指向同一个操作系统，也就是所有进程的虚拟地址3GB ~ 4GB本质上都是指向同一片物理地址，只要保证所有用户进程虚拟地址空间 3GB ~ 4GB 对应的页表项中所记录的物理页地址是相同的就行啦。
+
+页目录表的位置，我们就放在物理地址 Ox1OOOOO 处。为了让页表和页目录表紧凑一些(这不是必须的)，咱们让页表紧挨着页目录表。页目录本身占4KB，所以第一个页表的物理地址是 Ox1O1OOO
+![](./images/%E9%A1%B5%E7%9B%AE%E5%BD%95%E8%A1%A8%E4%B8%8E%E9%A1%B5%E8%A1%A8%E5%86%85%E5%AD%98%E5%B8%83%E5%B1%80.png)
+
+loader.s 的完整代码
+```asm
+%include "boot.inc"
+   section loader vstart=LOADER_BASE_ADDR
+   LOADER_STACK_TOP equ LOADER_BASE_ADDR
+   
+;构建gdt及其内部的描述符
+   GDT_BASE:   dd    0x00000000 
+	       dd    0x00000000
+
+   CODE_DESC:  dd    0x0000FFFF 
+	       dd    DESC_CODE_HIGH4
+
+   DATA_STACK_DESC:  dd    0x0000FFFF
+		     dd    DESC_DATA_HIGH4
+
+   VIDEO_DESC: dd    0x80000007	       ; limit=(0xbffff-0xb8000)/4k=0x7
+	       dd    DESC_VIDEO_HIGH4  ; 此时dpl为0
+
+   GDT_SIZE   equ   $ - GDT_BASE
+   GDT_LIMIT   equ   GDT_SIZE -	1 
+   times 60 dq 0					 ; 此处预留60个描述符的空位(slot)
+   SELECTOR_CODE equ (0x0001<<3) + TI_GDT + RPL0         ; 相当于(CODE_DESC - GDT_BASE)/8 + TI_GDT + RPL0
+   SELECTOR_DATA equ (0x0002<<3) + TI_GDT + RPL0	 ; 同上
+   SELECTOR_VIDEO equ (0x0003<<3) + TI_GDT + RPL0	 ; 同上 
+
+   ; total_mem_bytes用于保存内存容量,以字节为单位,此位置比较好记。
+   ; 当前偏移loader.bin文件头0x200字节,loader.bin的加载地址是0x900,
+   ; 故total_mem_bytes内存中的地址是0xb00.将来在内核中咱们会引用此地址
+   total_mem_bytes dd 0					 
+   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+   ;以下是定义gdt的指针，前2字节是gdt界限，后4字节是gdt起始地址
+   gdt_ptr  dw  GDT_LIMIT 
+	    dd  GDT_BASE
+
+   ;人工对齐:total_mem_bytes4字节+gdt_ptr6字节+ards_buf244字节+ards_nr2,共256字节
+   ards_buf times 244 db 0
+   ards_nr dw 0		      ;用于记录ards结构体数量
+
+   loader_start:
+   
+;-------  int 15h eax = 0000E820h ,edx = 534D4150h ('SMAP') 获取内存布局  -------
+
+   xor ebx, ebx		      ;第一次调用时，ebx值要为0
+   mov edx, 0x534d4150	      ;edx只赋值一次，循环体中不会改变
+   mov di, ards_buf	      ;ards结构缓冲区
+.e820_mem_get_loop:	      ;循环获取每个ARDS内存范围描述结构
+   mov eax, 0x0000e820	      ;执行int 0x15后,eax值变为0x534d4150,所以每次执行int前都要更新为子功能号。
+   mov ecx, 20		      ;ARDS地址范围描述符结构大小是20字节
+   int 0x15
+   jc .e820_failed_so_try_e801   ;若cf位为1则有错误发生，尝试0xe801子功能
+   add di, cx		      ;使di增加20字节指向缓冲区中新的ARDS结构位置
+   inc word [ards_nr]	      ;记录ARDS数量
+   cmp ebx, 0		      ;若ebx为0且cf不为1,这说明ards全部返回，当前已是最后一个
+   jnz .e820_mem_get_loop
+
+;在所有ards结构中，找出(base_add_low + length_low)的最大值，即内存的容量。
+   mov cx, [ards_nr]	      ;遍历每一个ARDS结构体,循环次数是ARDS的数量
+   mov ebx, ards_buf 
+   xor edx, edx		      ;edx为最大的内存容量,在此先清0
+.find_max_mem_area:	      ;无须判断type是否为1,最大的内存块一定是可被使用
+   mov eax, [ebx]	      ;base_add_low
+   add eax, [ebx+8]	      ;length_low
+   add ebx, 20		      ;指向缓冲区中下一个ARDS结构
+   cmp edx, eax		      ;冒泡排序，找出最大,edx寄存器始终是最大的内存容量
+   jge .next_ards
+   mov edx, eax		      ;edx为总内存大小
+.next_ards:
+   loop .find_max_mem_area
+   jmp .mem_get_ok
+
+;------  int 15h ax = E801h 获取内存大小,最大支持4G  ------
+; 返回后, ax cx 值一样,以KB为单位,bx dx值一样,以64KB为单位
+; 在ax和cx寄存器中为低16M,在bx和dx寄存器中为16MB到4G。
+.e820_failed_so_try_e801:
+   mov ax,0xe801
+   int 0x15
+   jc .e801_failed_so_try88   ;若当前e801方法失败,就尝试0x88方法
+
+;1 先算出低15M的内存,ax和cx中是以KB为单位的内存数量,将其转换为以byte为单位
+   mov cx,0x400	     ;cx和ax值一样,cx用做乘数
+   mul cx 
+   shl edx,16
+   and eax,0x0000FFFF
+   or edx,eax
+   add edx, 0x100000 ;ax只是15MB,故要加1MB
+   mov esi,edx	     ;先把低15MB的内存容量存入esi寄存器备份
+
+;2 再将16MB以上的内存转换为byte为单位,寄存器bx和dx中是以64KB为单位的内存数量
+   xor eax,eax
+   mov ax,bx		
+   mov ecx, 0x10000	;0x10000十进制为64KB
+   mul ecx		;32位乘法,默认的被乘数是eax,积为64位,高32位存入edx,低32位存入eax.
+   add esi,eax		;由于此方法只能测出4G以内的内存,故32位eax足够了,edx肯定为0,只加eax便可
+   mov edx,esi		;edx为总内存大小
+   jmp .mem_get_ok
+
+;-----------------  int 15h ah = 0x88 获取内存大小,只能获取64M之内  ----------
+.e801_failed_so_try88: 
+   ;int 15后，ax存入的是以kb为单位的内存容量
+   mov  ah, 0x88
+   int  0x15
+   jc .error_hlt
+   and eax,0x0000FFFF
+      
+   ;16位乘法，被乘数是ax,积为32位.积的高16位在dx中，积的低16位在ax中
+   mov cx, 0x400     ;0x400等于1024,将ax中的内存容量换为以byte为单位
+   mul cx
+   shl edx, 16	     ;把dx移到高16位
+   or edx, eax	     ;把积的低16位组合到edx,为32位的积
+   add edx,0x100000  ;0x88子功能只会返回1MB以上的内存,故实际内存大小要加上1MB
+
+.mem_get_ok:
+   mov [total_mem_bytes], edx	 ;将内存换为byte单位后存入total_mem_bytes处。
+
+
+;-----------------   准备进入保护模式   -------------------
+;1 打开A20
+;2 加载gdt
+;3 将cr0的pe位置1
+
+   ;-----------------  打开A20  ----------------
+   in al,0x92
+   or al,0000_0010B
+   out 0x92,al
+
+   ;-----------------  加载GDT  ----------------
+   lgdt [gdt_ptr]
+
+   ;-----------------  cr0第0位置1  ----------------
+   mov eax, cr0
+   or eax, 0x00000001
+   mov cr0, eax
+
+   jmp dword SELECTOR_CODE:p_mode_start	     ; 刷新流水线，避免分支预测的影响,这种cpu优化策略，最怕jmp跳转，
+					     ; 这将导致之前做的预测失效，从而起到了刷新的作用。
+.error_hlt:		      ;出错则挂起
+   hlt
+
+[bits 32]
+p_mode_start:
+   mov ax, SELECTOR_DATA
+   mov ds, ax
+   mov es, ax
+   mov ss, ax
+   mov esp,LOADER_STACK_TOP
+   mov ax, SELECTOR_VIDEO
+   mov gs, ax
+
+
+;-------------   开始创建页目录及页表   ---------------
+   ; 创建页目录及页表并初始化页内存位图
+   call setup_page
+
+   ;要将描述符表地址及偏移量写入内存gdt_ptr,一会用新地址重新加载
+   sgdt [gdt_ptr]	      ; 存储到原来gdt所有的位置
+
+   ;将gdt描述符中视频段描述符中的段基址+0xc0000000
+   mov ebx, [gdt_ptr + 2]  
+   or dword [ebx + 0x18 + 4], 0xc0000000      ;视频段是第3个段描述符,每个描述符是8字节,故0x18。
+					      ;段描述符的高4字节的最高位是段基址的31~24位
+
+   ;将gdt的基址加上0xc0000000使其成为内核所在的高地址
+   add dword [gdt_ptr + 2], 0xc0000000
+
+   add esp, 0xc0000000        ; 将栈指针同样映射到内核地址
+
+   ; 把页目录地址赋给cr3
+   mov eax, PAGE_DIR_TABLE_POS
+   mov cr3, eax
+
+   ; 打开cr0的pg位(第31位)
+   mov eax, cr0
+   or eax, 0x80000000
+   mov cr0, eax
+
+   ;在开启分页后,用gdt新的地址重新加载
+   lgdt [gdt_ptr]             ; 重新加载
+
+   mov byte [gs:160], 'V'     ;视频段段基址已经被更新,用字符v表示virtual addr
+
+   jmp $
+
+;-------------   创建页目录及页表的函数   ---------------
+setup_page:
+;先把页目录占用的空间逐字节清0
+   mov ecx, 4096
+   mov esi, 0
+.clear_page_dir:
+   mov byte [PAGE_DIR_TABLE_POS + esi], 0
+   inc esi
+   loop .clear_page_dir
+
+;开始创建页目录项(PDE)
+.create_pde:				     ; 创建Page Directory Entry
+   mov eax, PAGE_DIR_TABLE_POS
+   add eax, 0x1000 			     ; 此时eax为第一个页表的位置及属性
+   mov ebx, eax				     ; 此处为ebx赋值，是为.create_pte做准备，ebx为基址。
+
+;   下面将页目录项0和0xc00都存为第一个页表的地址，
+;   一个页表可表示4MB内存,这样0xc03fffff以下的地址和0x003fffff以下的地址都指向相同的页表，
+;   这是为将地址映射为内核地址做准备
+   or eax, PG_US_U | PG_RW_W | PG_P	     ; 页目录项的属性RW和P位为1,US为1,表示用户属性,所有特权级别都可以访问.
+   mov [PAGE_DIR_TABLE_POS + 0x0], eax       ; 第1个目录项,在页目录表中的第1个目录项写入第一个页表的位置(0x101000)及属性(7)
+   mov [PAGE_DIR_TABLE_POS + 0xc00], eax     ; 一个页表项占用4字节,0xc00表示第768个页表占用的目录项,0xc00以上的目录项用于内核空间,
+					     ; 也就是页表的0xc0000000~0xffffffff共计1G属于内核,0x0~0xbfffffff共计3G属于用户进程.
+   sub eax, 0x1000
+   mov [PAGE_DIR_TABLE_POS + 4092], eax	     ; 使最后一个目录项指向页目录表自己的地址
+
+;下面创建页表项(PTE)
+   mov ecx, 256				     ; 1M低端内存 / 每页大小4k = 256
+   mov esi, 0
+   mov edx, PG_US_U | PG_RW_W | PG_P	     ; 属性为7,US=1,RW=1,P=1
+.create_pte:				     ; 创建Page Table Entry
+   mov [ebx+esi*4],edx			     ; 此时的ebx已经在上面通过eax赋值为0x101000,也就是第一个页表的地址 
+   add edx,4096
+   inc esi
+   loop .create_pte
+
+;创建内核其它页表的PDE
+   mov eax, PAGE_DIR_TABLE_POS
+   add eax, 0x2000 		     ; 此时eax为第二个页表的位置
+   or eax, PG_US_U | PG_RW_W | PG_P  ; 页目录项的属性US,RW和P位都为1
+   mov ebx, PAGE_DIR_TABLE_POS
+   mov ecx, 254			     ; 范围为第769~1022的所有目录项数量
+   mov esi, 769
+.create_kernel_pde:
+   mov [ebx+esi*4], eax
+   inc esi
+   add eax, 0x1000
+   loop .create_kernel_pde
+   ret
+```
+
+boot.inc 的全部代码
+```asm
+;-------------	 loader和kernel   ----------
+
+LOADER_BASE_ADDR equ 0x900 
+LOADER_START_SECTOR equ 0x2
+KERNEL_BIN_BASE_ADDR equ 0x70000
+KERNEL_IMAGE_BASE_ADDR  equ   0x1500
+KERNEL_START_SECTOR equ 0x9
+
+PAGE_DIR_TABLE_POS equ 0x100000
+
+;--------------   gdt描述符属性  -------------
+DESC_G_4K   equ	  1_00000000000000000000000b   
+DESC_D_32   equ	   1_0000000000000000000000b
+DESC_L	    equ	    0_000000000000000000000b	;  64位代码标记，此处标记为0便可。
+DESC_AVL    equ	     0_00000000000000000000b	;  cpu不用此位，暂置为0  
+DESC_LIMIT_CODE2  equ 1111_0000000000000000b
+DESC_LIMIT_DATA2  equ DESC_LIMIT_CODE2
+DESC_LIMIT_VIDEO2  equ 0000_000000000000000b
+DESC_P	    equ		  1_000000000000000b
+DESC_DPL_0  equ		   00_0000000000000b
+DESC_DPL_1  equ		   01_0000000000000b
+DESC_DPL_2  equ		   10_0000000000000b
+DESC_DPL_3  equ		   11_0000000000000b
+DESC_S_CODE equ		     1_000000000000b
+DESC_S_DATA equ	  DESC_S_CODE
+DESC_S_sys  equ		     0_000000000000b
+DESC_TYPE_CODE  equ	      1000_00000000b	;x=1,c=0,r=0,a=0 代码段是可执行的,非依从的,不可读的,已访问位a清0.  
+DESC_TYPE_DATA  equ	      0010_00000000b	;x=0,e=0,w=1,a=0 数据段是不可执行的,向上扩展的,可写的,已访问位a清0.
+
+DESC_CODE_HIGH4 equ (0x00 << 24) + DESC_G_4K + DESC_D_32 + DESC_L + DESC_AVL + DESC_LIMIT_CODE2 + DESC_P + DESC_DPL_0 + DESC_S_CODE + DESC_TYPE_CODE + 0x00
+DESC_DATA_HIGH4 equ (0x00 << 24) + DESC_G_4K + DESC_D_32 + DESC_L + DESC_AVL + DESC_LIMIT_DATA2 + DESC_P + DESC_DPL_0 + DESC_S_DATA + DESC_TYPE_DATA + 0x00
+DESC_VIDEO_HIGH4 equ (0x00 << 24) + DESC_G_4K + DESC_D_32 + DESC_L + DESC_AVL + DESC_LIMIT_VIDEO2 + DESC_P + DESC_DPL_0 + DESC_S_DATA + DESC_TYPE_DATA + 0x0b
+
+;--------------   选择子属性  ---------------
+RPL0  equ   00b
+RPL1  equ   01b
+RPL2  equ   10b
+RPL3  equ   11b
+TI_GDT	 equ   000b
+TI_LDT	 equ   100b
+
+
+;----------------   页表相关属性    --------------
+PG_P  equ   1b
+PG_RW_R	 equ  00b 
+PG_RW_W	 equ  10b 
+PG_US_S	 equ  000b 
+PG_US_U	 equ  100b 
+```
+
+编译两个程序loader.s
+
+```shell
+nasm -I include/ -o loader.bin loader.s
+```
+
+将这个程序写入到硬盘中
+
+```shell
+dd if=/root/bochs/loader.bin of=/root/bochs/hd60M.img bs=512 count=3 seek=2 conv=notrunc
+```
+运行
+
+#### 快表TLB
+
+每一个虚拟地址到物理地址的转换都要经过PDE、PTE等查表计算出物理地址，转换过程中频繁的内存访问，使得地址转换速度慢上加慢，而处理器也不得不停下来等待内存的响应。如果给出一个虚拟地址后能直接得到相应的页框物理地址，免去中间的查表过程，直接用虚拟地址的低12位在该物理页框中寻址，
+岂不是大大提高了地址转换速度。处理器准备了一个高速缓存，可以匹配高速的处理器速率和低速的内存访问速度，它专门用来存放虚拟地址页框与物理地址页框的映射关系，这个调整缓存就是 TLB，即Translation Lookaside Buffer，俗称快表。
+TLB 中的条目是虚拟地址的高 20 位到物理地址高 20 位的映射结果，实际上就是从虚拟页框到物理页框的映射。除此之外 TLB 中还有一些属性位，比如页表项的 RW 属性。
+
+- 高速缓存由于成本等原因，容量一般都很小，TLB 也是，因此 TLB 中的数据只是当前任务的部分页表，而且只有 P 位为 1 的页表项才有资格在 TLB 中，如果 TLB 被装满了，需要将很少使用的条目换出。
+
+- TLB 的维护工作交给操作系统开发人员，由开发人员于动控制。维护页表的代码是开发人员自己写的，他们肯定知道何时修改了页表，或是修改了哪些条目。
+
+- 尽管 TLB 对开发人员不可见，但依然有两种方法可以间接更新 TLB
+    - 一个是针对 TLB 中所有条目的方法一一重新加载CR3
+    - 处理器提供了指令 invlpg (invalidate page)，它用于在 TLB 中刷新某个虚拟地址对应的条目
+
+
+### 加载内核
+
+#### 用C语言写内核
+
+C语言程序要经过编译成汇编代码，然后再由汇编生成二进制的目标文件，再将目标文件链接成二进制的可执行文件。文件的链接过程才分配地址。
+
+一条C语言代码，会被翻译成1条或者多条汇编语言，而一条汇编代码几乎一对一的对应机器指令。
+
+用gcc编译程序：gcc -m32 -c -o 输出文件 源文件
+-c的作用是编译、汇编到目标代码，不进行链接，也就是直接生成目标文件。
+-o的作用是将输出的文件以指定文件名来存储，有同名文件存在时直接覆盖。
+
+链接：ld -m elf_i386 源文件 -Ttext 起始虚拟地址 -e main -o 输出文件
+-Ttext：指定起始虚拟地址
+-o：将输出的文件以指定文件名来存储，有同名文件存在时直接覆盖。
+-e：指定程序的起始地址，起始地址可是是数字形式的地址，也可以是符号名。默认 _start 。
+
+nm命令
+
+#### elf格式的二进制文件
+
+![](./images/elf%E7%9C%BC%E4%B8%AD%E7%9A%84%E7%9B%AE%E6%A0%87%E6%96%87%E4%BB%B6.png)
+
+- 程序最重要的的部分就是段（segment）和节（section），它们是真正的程序体，是真真切切的程序资源。段是由节组成的，多个节经过链接之后就被合成一个段。段和节的信息也是用header来描述的，程序头是program header，节头是section header。
+- 程序头表（program header table）和节头表（section header table）里存储的是多个程序头（segment）和多个节头（section）的信息。
+- elf header 这个数据结构用来描述程序头表和节头表的大小及位置信息。
+
+![](./images/elf%E6%96%87%E4%BB%B6%E6%A0%BC%E5%BC%8F%E5%B8%83%E5%B1%80.png)
+
+1. elf header
+
+![](./images/elf%20header%20%E4%B8%AD%E7%9A%84%E6%95%B0%E6%8D%AE%E7%B1%BB%E5%9E%8B.png)
+![](./images/elf%20header%E7%BB%93%E6%9E%84.png)
+
+- e_ident[16]
+- e_type占用2个字节，是用来指定elf目标文件的类型
+- e_machine占用2个字节，用来描述elf目标文件的体系结构类型，也就是说该文件要在哪种平台(哪种机器)上才能运行。
+- e_version：占用4个字节，用来表示版本信息
+- e_entry：占用4个字节，用来指明操作系统运行该程序时，将控制权转交到的虚拟地址。
+- e_phoff：占用4个字节，用来指明程序头表（program header table）在文件内的字节偏移量。如果没有程序头表，该值为0
+- e_shoff：占用4个字节，用来指明节头表（section header table）在文件内的字节偏移量。若没有节头表，该值为0
+- e_flags：占用4个字节，用来指明与处理器相关的标志。
+- e_ehsize：占用 2 个字节，用来指明 elf header 的字节大小。
+- e_phentsize：占用2个字节，用来指明程序头表（program header table）中每个条目（entry）的字节大小，即每个用来描述段信息的数据结构的字节大小
+- e_phnum ：占用 2 个字节，用来指明程序头表中条目的数量。实际上就是段的个数。
+- e_phentsize：占用2个字节，用来指明节头表（section header table）中每个条目（entry）的字节大小，即每个用来描述节信息的数据结构的字节大小。
+- e_shnum：占用2个字节，用来指明节头表中条目的数量。实际上就是节的个数。
+- e_shstrndx：占用2个字节，用来指明string name table在节头表中的索引index。
+
+程序头表中的条目的数据结构elf32_phdr，这是用来描述各个段的信息用的
+![](./images/Program%20header%20%E7%BB%93%E6%9E%84.png)
+- p_type：占用4个字节，用来指明程序中该段的类型
+- p_offset：占用4个字节，用来指明本段在文件内的起始偏移字节
+- p_vaddr：占用4个字节，用来指明本段在内存中的起始虚拟地址
+- p_paddr：占用4个字节，仅用于与物理地址相关的系统中，因为System V忽略用户程序中所有的物理地址，所以此项暂且保留，未设定。
+- p_filesz：占用4个字节，用来指明本段在文件中的大小
+- p_memsz：占用4个字节，用来指明本段在内存中的大小
+- p_flags：占用4个字节，用来指明与本段相关的标志
+- p_align：占用4个字节，用来指明本段在文件和内存中的对齐方式。如果值为0或1，则表示不对齐。否则则p_align应该是2的幂次数
+
+#### 将内核文件载入内存
+
+
+将内核代码编译后复制到镜像文件中去
+```shell
+# 写"内核"代码
+vim main.c
+
+# int main(void) {
+#    while(1);
+#}
+
+# 编译
+gcc -m32 -c -o main.o main.c 
+# 链接
+ld -m elf_i386 main.o -Ttext 0xc0001500 -e main -o kernel.bin 
+# 将内核文件kernel.bin，把内核文件写入硬盘第9个扇区，以0开始
+dd if=kernel.bin of=/root/bochs/hd60M.img bs=512 count=200 seek=9 conv=notrunc
+```
+
+- 内核很小，只需要在低端1MB内存就够了，内存被加载到内存后，loader还要通过分析其elf结构将其展开到新的位置，所以说内核在内存中有两份拷贝，一份是elf格式的源文件kernel.bin，另外一份loader解析elf格式的kernel.bin后在内存中生成内核映像(也就是将程序中的各个段复制到内存中的程序体)，这个映像才是正正运行的内核。将内核文件kernel.bin加载到地址较高的位置，将内核映像放到较低位置，这样的好处是以后内核不断增大覆盖掉loader(内核文件经过loader解析过后就没用了，可以被覆盖)，内核文件kernel.bin也可被覆盖。
+
+![](./images/%E5%86%85%E6%A0%B8%E7%A8%8B%E5%BA%8F%E5%B8%83%E5%B1%80.png)
+
+
