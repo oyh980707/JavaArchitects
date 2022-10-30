@@ -1141,7 +1141,7 @@ L字段：用来设置是否64位代码段。L为1表示64位代码段，L为0�
 
 ![](./images/%E9%80%89%E6%8B%A9%E5%AD%90%E7%9A%84%E7%BB%93%E6%9E%84.png)
 
-- 段选择子：第0\~1位用来存储RPL。第2位是TI位，用来指示选择子是在GDT中，还是在LDT中索引描述符。第3~15位是描述符的索引值，用此值在GDT中索引描述符，由于选择子的索引部分是13位，即2的13次方等于8192，故最多可索引8192个段，这和GDT中最多定义8192个描述符吻合。
+- 段选择子：第0 ~ 1位用来存储RPL，表示请求特权级，表示请求别人资源的能力，也就是当前指令的特权级，他和段描述符中的DPL有所不同，DPL描述的是当前执行指令CPU所处的特权级。第2位是TI位，用来指示选择子是在GDT中，还是在LDT中索引描述符。第3~15位是描述符的索引值，用此值在GDT中索引描述符，由于选择子的索引部分是13位，即2的13次方等于8192，故最多可索引8192个段，这和GDT中最多定义8192个描述符吻合。
 
 - 注意：GDT中的第0个段描述符是不可用的，若选择到了GDT中的第0个描述符，处理器将发出异常
 
@@ -2443,7 +2443,6 @@ nm命令
 
 #### 将内核文件载入内存
 
-
 将内核代码编译后复制到镜像文件中去
 ```shell
 # 写"内核"代码
@@ -2465,4 +2464,1043 @@ dd if=kernel.bin of=/root/bochs/hd60M.img bs=512 count=200 seek=9 conv=notrunc
 
 ![](./images/%E5%86%85%E6%A0%B8%E7%A8%8B%E5%BA%8F%E5%B8%83%E5%B1%80.png)
 
+#### 特权级
 
+特权级按照权利的大小从大到小分为0、1、2、3级。0级操作系统内核所在的特权级，1、2特权级一般是虚拟机、驱动程序等系统服务。最外层的3特权级就是用户程序。
+
+#### TSS
+
+TSS，即 Task State Segment，意为任务状态段。
+TSS 是一种数据结构，它用于存储任务的环境。TSS是每个任务都有的结构，它用于一个任务的标识，相当于任务的身份证，程序拥有此结构才能运行，这是处理器硬件上用于任务管理的系统结构，处理器能够识别其中每一个字段。
+
+每个任务的每个特权级下只能有一个栈。TSS 代表一个任务，每个任务又有 4 个栈，TSS 中只有 3 个栈: ssO 和 espO、 ss1 和 esp1、 ss2 和 esp2。TSS 中不需要记录 3 特权级的栈，因为 3 特权级是最低的，没有更低的特权级会向它转移。而且只有低特权向高特权转移在先才有高特权跳回地特权。其次当进入高特权时，低特权的栈地址信息会压入到高特权栈中，一边retf等操作跳回地特权。而且各个特权的栈地址不变，除非手动修改。
+
+特权级转移
+1. 由中断门、调用门等手段实现低特权级转向高特权级
+    
+3. 由调用返回指令从高特权级返回到低特权级，这是唯一一种能让处理器降低特权级的情况
+
+TSS是由TR寄存器加载的，每次执行任务不同，TSS加载不同的任务的TSS就可以了。
+
+
+#### DPL和CPL
+
+在 CPU 中运行的是指令，其运行过程中的指令总会属于某个代码段，该代码段的特权级，也就是代码段描述符中的DPL，便是当前 CPU 所处的特权级，这个特权级称为当前特权级，即 CPL(Current Privilege Level)，它表示处理器正在执行的代码的特权级别，除一致性代码段外，转移后的目标代码 据段的DPL是将来处理器的当前特权级CPL。
+DPL，即 Descriptor Privilege Level，描述符特权级
+
+当前特权级CPL保存在CS选择子中的RPL部分，而代码段描述符中的DPL是用来给代码段寄存器CS的RPL位赋值用的，
+
+整个过程：当前正在运行的代码所在的代码段的特权级 DPL 就是处理器的当前特权级，当处理器从一个特权级的代码段转移到另一个特权级的代码段上执行时，由于两个代码段的特权级不一样，处理器当前的特权身份起了变化，这就是当前特权级CPL改变的原因。其实就是使用了那些能够改变程序执行流的指令，如int、 call等，这样就使 cs 和 EIP 的值改变，从而使处理器执行到了不同特权级的代码。 不过，特权转移可不是随便进行的，处理器要检查特权变换的条件，当处理器特权级检查的条件通过后，新代码段的 DPL就变成了处理器的CPL，也就是目标代码段描述符的DPL将保存在代码段寄存器 cs 中的RPL位。只是代码段寄存器cs中的RPL是CPL，其他段寄存器中选择子的RPL与CPL无关，因为CPL是针对具有“能动性”的访问者(执行者)来说的，代码是执行者，它表示访问的请求者，所以CPL只存放在代码段寄存器 cs 中低2位的RPL中。
+
+- 对于受访者为数据段(段描述符中 type 宇段中未有 X 可执行属性)来说:
+只有访问者的权限大于等于该 DPL 表示的最低权限才能够继续访问。比如，DPL为1的段描述符，只有特权级为0、1的访问者才有资格访问它所代表的资源，特权为2、 3 的访问者会被CPU拒之门外。
+- 对于受访者为代码段(段描述符中 type 宇段中含有 X 可执行属性)来说
+只有访问者的权限等于该DPL表示的最低权限才能够继续访问，即只能平级访问，平级访问有个条件是代码段是非一致性代码段（），一致性代码段可以执行大于等于当前CPL特权的代码段。因为除了从中断处理过程返回外，任何时候CPU都不允许从高特权级转移到低特权级。而访问者任何时候都不允许访问比自己特权更高的资源，代码段也是资源。因为只能平级访问。
+
+注：一致性代码段也称为依从代码段， Confonning，用来实现从低特权级的代码向高特权级的代码转移。一致性代码段是指如果自己是转移后的目标段，自己的特权级(DPL)一定要大于等于转移前的 CPL，即数值上CPL>=DPL，也就是一致性代码段的DPL是权限的上限，任何在此权限之下的特权级都可以转到此代码段上执行。一致性代码段的一大特点是转移后的特权级不与自己的特权级(DPL)为主，而是与转移前的低特权级一致，昕从、依从转移前的低特权级，这就是它称为“依从、一致”的原因。也就是说，处理器遇到目标段为一致性代码段时，并不会将CPL用该目标段的DPL替换。
+
+
+#### 门、调用门和RPL序
+
+![门描述符的结构](./images/%E9%97%A8%E6%8F%8F%E8%BF%B0%E7%AC%A6%E7%9A%84%E7%BB%93%E6%9E%84.png)
+
+- 任务门描述符可以放在 GDT、 LDT 和 IDT (中断描述符表) 中，调用门可以位于 GDT、 LDT 中，中断门和陷阱门仅位于IDT中。
+- 任务门、调用门都可以用 call 和 jmp 指令直接调用，原因是这两个门描述符都位于描述符表中，要么是 GDT， 要么是 LDT，访问它们同普通的段描述符是一样的，也必须要通过选择子，因此只要在 call 或 jmp 指令后接任务门或调用门的选择子便可调用它们了。陷阱门和中断门只存在于 IDT 中，因此不能主动调用，只能由中断信号来触发调用。
+- 任务门有点特殊，它用任务 TSS 的描述符选择子来描述一个任务
+
+1. 调用门
+call 和 jmp 指令后接调用门选择子为参数，以调用函数例程的形式实现从低特权向高特权转移，可用来实现系统调用。call指令使用调用门可以实现向高特权代码转移，jmp指令使用调用门只能实现向平级代码转移，因为jmp向高特权级跳转后就回不来了，只能通过retf或iret回来。
+
+![](./images/%E8%B0%83%E7%94%A8%E9%97%A8%E6%89%A7%E8%A1%8C%E6%B5%81%E7%A8%8B.png)
+
+1. ”call或jmp指令+调用门描述符的选择子“(该处的偏移地址会被忽略，没有用)，处理器门描述符选择子的高13位乘以8作为该描述符在GDT中过的偏移量(LDT类似，TI的值决定)，加上寄存器GDTR中的GDT基地址，最终找到了门描述符的地址。该描述符中记录的是内核例程所在代码段的选择子及偏移量。
+2. 处理器在用找到的门描述符中的选择子再次在GDT中进行索引到最终的内核代码基地址，用它加上门描述符中记录的偏移量，得到最终内核例程的起始地址。该描述符未涉及到分页，如果是分页的话，该处得到的是虚拟地址，还需要进行页查找。
+3. 由于参数实在用户程序下给出，压入栈是压入的3特权级的栈中，特权转移后，对应的栈也相应的改变，此时处理器在固件上实现了参数的自动复制，就是将用户进程压在3特权级栈中的参数自动复制到0特权级栈中。参数个数在门描述符中有所描述。
+    1. 调用前的当前特权级为3，调用后的新特权级为0，所以调用门转移前用的是3特权级栈，调用后用的是0特权级栈。
+    2. 现在为此调用门提供2个参数，这是在使用调用门前完成的，目前是在3特权级，所以要在特权级栈中压入参数，分别是参数1和参数2。
+    3. 在这一步骤中要确定新特权级使用的栈，新特权级就是未来的CPL，它就是转移后的目标代码段的DPL。所以根据门描述符中选择子对应的目标代码段的DPL，如前假设这里DPL为0，处理器自动在TSS中找到合适的栈段选择子SS和栈指针ESP，它们作为转移后新的栈：SS_new、ESP_new。
+    4. 检查新栈段选择子对应的描述符的DPL和TYPE，如果未通过检查则处理器引发异常。(每个段赋值的时候会进行检查，之后使用不再检查)
+    5. 如果转移后的目标代码段DPL比CPL要高，说明栈段选择子SS_new是特权级更高的栈，这说明需 要特权级转换，需要切换到新栈，由于转移前的旧栈段选择子SS_old及指针ESP_old得保存到新栈中，这样在高特权级的目标程序执行完成后才能通过retf指令恢复旧栈。但此时新栈的选择子SS_new和ESP_new还未加载到栈段寄存器SS和栈指针esp中，只能在使用新栈后才能将SS_old和ESP_old保存到新栈中，所以处理器先找个地方临时保存SS_old和ESP_old，之后将 SS_new加载到栈段寄存器SS，esp_new加载到栈指针寄存器esp，这样便启用了新栈。
+    6. 在使用新栈后，将上一步中临时保存的SS_old和ESP_old压入到当前新栈中，也就是0特权级栈。由于咱们讨论的是32位模式，故栈操作数也是32位，SS_old只是16位数据，将其高16位用0填充后入栈保存。
+    7. 将用户栈中的参数复制到转移后的新栈中，根据调用门描述符中的“参数个数”决定复制几个参数
+    8. 由于调用门描述符中记录的是目标程序所在代码段的选择子及偏移地址，这意味着代码段寄存器cs要用该选择子重新加载，处理器不管新的选择子和任何段寄存器(包括CS)中当前的选择子是否一致，也不管这两个选择子是否指向相同的段，只要段寄存器被加载，段描述符缓冲寄存器就会被刷新，从而相当于切换到了新段上运行，这是段间远转移，所以需要将当前代码段cs和EIP都备份在栈中，这两个值分别记作CS_old和EIP_old，由于CS_old只是16位数据，在32位模式下操操作数大小是32位，故将其高16位用0填充后再入栈。这两个值是将来恢复用户进程的关键，也就是从内核进程中返回时用的地址。
+    9. 把门描述符中的代码段选择子装载到代码段寄存器cs，把偏移量装载到指令指针寄存器EIP。
+
+![](./images/%E7%89%B9%E6%9D%83%E7%BA%A7%E8%BD%AC%E7%A7%BB%E6%96%B0%E6%A0%88.png)
+
+至此，处理器终于从用户程序转移到了内核程序上，实现了特权级由3到0的转移，开始执行门描述符中对应的内核服务程序。如果在第3步中处理器发现是平级转移，比如内核程序调用“调用门”的情况，这是0级到0级的平级转移，处理器并不会更新当前栈，也就是说不会从TSS中再次选择同级的栈载入SS和ESP，处理器只是把此转移当成直接远转移，于是跨过中间几步，直接做第8步，将cs和EIP压入当前栈中。
+
+用retf指令从调用门返回的过程
+
+1. 当处理器执行到retf指令时，它知道这是远返回，所以需要从栈中返回旧栈的地址及返回到低特权级的程序中。这时候它要进行特权级检查。先检查战中cs选择子，根据其RPL位，即未来的CPL. 判断在返回过程中是否要改变特权级。
+2. 此时栈顶应该指向栈中的EIP_old。在此步骤中获取栈中CS_old和EIP_old，根据该CS_old选择 子对应的代码段的DPL及选择子中的RPL做特权级检查。如果检查通过，先从栈中弹出32位数据，即EIP_old到寄存器EIP，然后再弹出32位数据CS_old，此时要临时处理一下，由于所有的段寄存器都是16位的，所以丢弃CS_old的高16位，将低16位加载到cs寄存器。此时栈指针ESP_new指向最后一个参数。
+3. 如果返回指令retf后面有参数，则增加栈指针ESP_new的值，以跳过栈中参数，按理说，“retf+参数”是为了跳过从低特权级棋中复制到当前高级栈中的参数，如参数1和参数2，所以retf后面的参数 应该等于参数个数*参数大小。此时栈指针ESP_new便指向ESP_old。
+4. 如果在第1步中判断出需要改变特权级，从栈中弹出32位数据ESP_old到寄存器ESP。同样寄存器SS也是16位的，故再弹出32位的SS_old，只将其低16位加载到寄存器SS，此时恢复了旧栈。 相当于丢弃寄存器SS和ESP中原有的SS_new和ESP_new。
+5. 至此，程序流程便返回到了之前调用“调用门”的低特权级程序。
+
+注：如果在返回时需要改变特权级，将会检查数据段寄存器DS、ES、FS和GS的内容，如果在它们之中，某个寄存器中选择子所指向的数据段描述符的DPL权限比返回后的CPL(CS.RPL)高，即数值上返回后的 CPL>数据段描述符的DPL，处理器将把数值0填充到相应的段寄存器。原因是处理器的特权级检查只发生在往段寄存器中加载选择子的时候，检查通过之后，再从该段中进行后续数据访问时就不需要再进行特权检查了。没有访问一次数据就检查一次特权级的，这样太低效了，总之检查只发生在关卡处。只在往段寄存器加载选择子时检查一次就够了，之后对该段的读写访问将不再受限。
+当进入内核之后，内核程序需要使用这些段寄存器，程序是人写的，万一使用过后这些段寄存器没有清理掉，回到用户程序，用户程序也可以继续使用这些段来访问内核数据，太危险了。(在中断处理程序中会手动更新所有寄存器，也就是手动任务恢复上下文，所以不会存在此类问题。)。所以在返回时若需要改变特权级，处理器必须要检查所有数据段中的选择子，若DS、ES、FS和GS中选择子所指向的数据段描述符的 DPL权限比目标特权级高，处理器将把数值0填充到相应的段寄存器。而GDT中第0个段描述符是不可用的，称之为哑描述符，这是为了避免选择子忘记初始化而误选了第0个段描述符，出问题时通常很难排查出来。这里也是巧妙的运用这个机制，来抛出异常，表示特权级转移过程中，段寄存器的数据有问题，好排查。
+
+调用门涉及到两个特权级，转移前的低特权级，转移后的高特权级，当然他们也可以是相等的特权级即平级转移。但是即使通过调用门也不能由高特权级向低特权级调用，特权级检查时就不能通过，只有通过返回指令retf或iret才能做到由高特权级转移到低特权级，调用门只能向平级或更高级转移。
+
+举例深入理解：
+```text
+假设当前处理器正在DPL为3的代码段上运行，即正在运行用户程序，故处理器当前特权级CPL为
+3。 此时用户进程想获取安装的物理内存大小，该数据存储在操作系统的数据段中，该段DPL为0。由于 当前运行的是用户程序，CPL为3，所以无法访问DPL为0的数据段。于是它使用调用门向系统救助。调用门是操作系统安装在全局描述符表GDT中的，为了让用户进程可以使用此调用门，操作系统将该调用门描述符的DPL设为3。该调用门只需要一个参数，就是用户程序用于存储系统内存容量的缓冲区所在数据段的选择子和偏移地址。调用门描述符中记录的就是内核服务程序所在代码段的选择子及在代码段内的偏移量 。 用户进程用“call 调用门选择子”的方式使用调用门，此调用门选择子是由操作系统提供的，该选择子的RPL为3，此时如果用户伪造一个调用门选择子也没用，因为此选择子是用来索引门描述符的，并不用来指向缓冲区的选择子，调用门选择子中的高13位索引值必须要指向门描述符在GDT中的位置，选择子中低2位的RPL伪造也没意义，因为此时CPL为3，是短板，以它为主。此时处理器便进行特权级检查，CPL为3, RPL为3，门描述符DPL为3，即数值上( CPL<=DPL && RPL<=DPL) 成立，初步检查通过。接下来还要再将CPL与门描述符中选择子所对应的代码段描述符DPL比较，这是调用门对应的内核服务程序的DPL，为叙述方便将其记作DPL_CODE。由于DPL CODE是内核程序的特权级，所以DPL_CODE为0, CPL为3，即数值上满足CPL>=DPL_CODE，CPL比目标特权级低，检查通过，该用户程序可以用调用门，于是处理器的当前特权级CPL的值用DPL_CODE代替，记录在CS.RPL中，此时CPL变为0。接下来，处理器便以0特权级的身份开始执行该内核服务程序，由于该服务程序的参数是用户提交的缓冲区所在的数据段的选择子及偏移量，为避免用户将缓冲区指向了内核的数据区，安全起见，在该内核服务程序中，操作系统将这个用户所提交的选择子的RPL变更为用户进程的CPL，也就是指向缓冲区所在段的选择子的RPL变成了3。 前面说过，参数都是内核在0级栈中获得的，虽然用户进程将缓冲区的选择子及偏移量压在了3特权级栈中，但由于调用门的特权级变换，参数已经由处理器在固件一级 上自动复制到0特全级栈中了。用户的代码段寄存器cs也在特权级发生变化时，由处理器自动压入到0特权级栈中，所以操作系统需要的参数都可以在自己的0特权级战中找到。用户缓冲区的选择子修改过后，接下来内核服务程序将用户所需要的内存容量大小写到这个选择子和用户提交的偏移量对应的缓冲区。如果用户程序想搞破坏，所提交的这个缓冲区选择子指向的目标段不是用户进程自己的数据段，而是内核数据段或内核代码段，由于目标段的DPL为0，虽然此时己在内核中执行，CPL为0，但选择子RPL己经被改为3，数值上不满足CPL<=DPL&&RPL<=DPL，往缓冲区中的写入被拒绝，处理器引发异常。如果用户程序提交的缓冲区选择子确实指向用户程序自己的数据段，DPL则为3，数值上满足CPL<=DPL&&RPL<=DPL，往缓冲区中的写入则会成功。如果中断服务程序内部再有访问内核自己内存段的操作，还会按照数值上( CPL<=DPL&&RPL<=DPL) 的策略进行新一轮的特权检测。
+```
+生活中的例子
+```text
+报考驾校也要有个年龄限制，即使考C本B本也要分年龄的。假如某个小学生 A (用户进程)特别喜欢开车，他就是想考个驾照，可驾校的门卫(调用门)一看他年龄太小都不让他进门，连填写报名登记表的机会都没有，怎么办?于是他就求他的长辈 B (内核)帮他去报名，长辈的年龄肯定够了，门卫对他放行，他来到驾校招生办公室后，对招生人员说要帮别人报名。人家招生人员对B说，好吧，帮别人代报名需要出示对方的身份证(RPL)，于是长辈B就把小学生A的身份证(现在小孩子就可以申请身份证，只是年龄越小有效期越短，因为小孩子长得快嘛)拿出来了，招生人员一看，年纪这么小啊，不到法制学车年纪呢，拒绝接收。这时候驾校招生人员的安全意识开始泛滥了，以纵容小孩子危险驾驶为名把长辈B批评了一顿(引发异常)。
+```
+
+2. 中断门
+以 int 指令主动发中断的形式实现从低特权向高特权转移，Linux系统调用便用此中断门实现
+
+3. 陷阱门
+以 int3 指令主动发中断的形式实现从低特权向高特权转移，这一般是编译器在调试时用
+
+4. 任务门
+任务以任务状态段TSS为单位，用来实现任务切换，它可以借助中断或指令发起。当中断发生时，如果对应的中断向量号是任务门，则会发起任务切换。也可以像调用门那样，用call或jmp指令后接任务 门的选择子或任务TSS的选择子。
+
+
+#### IO特权级
+
+IO读写特权是由标志寄存器eflags中的IOPL位和TSS中的IO位图决定的，它们用来指定执行IO操作的最小特权级。在eflags寄存器中第12 ~ 13位便是IOPL(I/O Privilege Level)，即IO特权级，它除了限制当前任务进行IO敏感指令的最低特权级外，还用来决定任务是否允许操作所有的IO端口，IOPL位是打开所有IO端口的开关。CPL为0特权级下处理器是不受IO限制的。
+
+IOPL是所有IO端口的开关，如果将开关打开，便可以访问全部65536个端口，如果开关被关上，即数值上 CPL > IOPL，则可以通过IO位图来设置部分端口的访问权限。即先在整体上关闭，再从局部上打开。这有点像设置防火墙的规则，先默认为全部禁止访问，想放行哪些端口再单独打开。这样做的原因是为了提速。如果所有IO端口访问都要经过内核的话，由低特权级转向高特权级时是需要保存任务上下文环境的，
+这个过程也是要消耗处理器时间的，随着端口访问多起来，时间成本还是很可观的。这一典型的应用就是 硬件的驱动程序，它位于特权级1。
+
+驱动程序就是通过in、out等IO指令直接访问硬件的程序，它为上层程序提供对硬件的控制访问，相当于硬件的代理。驱动程序肯定是要直接控制 IO 端口的，尽管它可以像 Linux 那样位于 0 特权级，但它位于1特权级时，依然可以直接操作硬件端口 。
+
+IOPL 如何设置
+用户程序可以在由操作系统加载时通过指定整个eflags设置，即使内核IOPL为0也得写进去eflags寄存器中才生效。没有直接读写eflags寄存器的指令，不过可以通过将栈中数据弹出到eflags寄存器中来实现修改。可以先用pushf指令将eflags整体压入栈，然后在栈中修改相应位，再用popf指令弹出到eflags寄存器中。另外一个可利用栈的指令是iretd，用iretd指令从中断返回时，会将栈中相应位置的数据当成eflags的内容弹出到eflags寄存器中。所以可以改变IOPL的指令只有popf和iretd指令，依然是只有在0特权下才能执行。如果在其他特权级下执行此指令，处理器也不会引发异常，只是没任何反应。
+
+I/O位图
+Intel处理器最大支持65536个端口，它允许任务通过I/O位图来开启特定端口，位图中的每一bit代表相应的端口，比如第0个bit表示第0个端口，第65535个bit表示第65535个端口，65536个端口号占用的位图大小是63356/8=8192字节，即8KB。I/O位图中如果相应bit被置为0，表示相应端口可以访问，否则为1的话，表示该端口禁止访问。I/O位图只是在数值上 CPL > IOPL，即当前特权级比IOPL低时才有效，若当前特权级大于等于IOPL，任何端口都可直接访间不受限制。I/O位图是位于TSS中的，它可以存在，也可以不存在，它只是用来设置对某些特定端口的访问。
+
+寻找I/O位图
+有一项是“I/O位图在TSS中的偏移地址”，它在TSS中偏移102宇节的地方，占2个字节空间，此处用来存储I/O位图的偏移地址，即此地址是I/O位图在TSS中以0为起始的偏移量。如果某个TSS存在I/O位图的话，此处用来保存它的偏移地址。TSS中如果有I/O位图的话，它将位于TSS的顶端，这就是TSS的实际尺寸并不固定的原因，当包括I/O位图时，其大小是“I/O位图偏移地址”+8192+1字节，结尾这个1宇节是0xff
+
+为什么最有一个0xff字节？
+1. 处理器允许I/O位图中不映射所有的端口，即I/O位图长度可以不足，但8KB，固的最后一字节必须为 OxFF。如果在位图范围外的端口，处理器一律默认禁止访问。如果位图最后一字节的OxFF属于全部65536个端口范围之内，字节各位全为1表示禁止访问此字节代表的全部端口。
+2. 如果该字节已经超过了全部端口的范围，它并不用来映射端口，只是用来作为位图的边界标记，用于跨位图最后一个字节时的“余量字节”。避免越界访问TSS外的内存。
+
+## 完善内核
+
+### 函数约定
+
+调用约定，calling conventions，它是调用函数时的一套约定，是被调用代码的接口，通过约定传参方式(栈、寄存器等)，参数传递顺序，上下文的保存由谁负责等
+
+cdecl 调用约定由于起源于C语言，所以又称为C调用约定，是C语言默认的调用约定。
+1. 调用者将所有参数从右向左入栈。
+2. 调用者清理参数所占的栈空间。
+
+```asm
+section .data
+str_c_lib: db "c library says: hello world!", 0xa ;0xa 为 LF ASCII 码 
+str_c_lib_len equ $-str_c_lib
+str_syscall: db "syscall says: hello world!", 0xa
+str_syscall_len equ $-str_syscall
+section .text
+global _start
+_start:
+
+;;;;;;;;;;;;; 方式1:模拟c语言中系统调用库函数write ;;;;;;;;;;;;;
+
+    push str_c_lib_len ;按照c调用约定压入参数
+    push str_c_lib
+    push 1
+    call simu_write; ;调用下面定义的 simu_write
+    add esp, 12 ;回收栈空间
+    
+;;;;;;;;;;;;; 方式 2:跨过库函数，直接进行系统调用  ;;;;;;;;;;;;;
+
+    mov eax, 4 ;第4号子功能是write系统调用(不是c库函数write)
+    mov ebx, 1
+    mov ecx, str_syscall
+    mov edx, str_syscall_len
+    
+    int 0x80 ;发起中断，通知 Linux 完成请求的功能
+    
+;;;;;;;;;;;;; 退出程序  ;;;;;;;;;;;;;
+    mov eax, 1 ;第1号子功能是exit
+    int 0x80
+    
+;这里模拟 c 库中系统调用函数 write 的实现原理
+simu_write:
+    
+    push ebp ;备份ebp
+    mov ebp, esp
+    
+    mov eax, 4
+    mov ebx, [ebp + 8] ;第 1 个参数
+    mov ecx, [ebp + 12] ;第 2 个参数
+    mov edx, [ebp + 16] ;第 3 个参数
+    
+    int 0x80
+    mov esp, ebp
+    pop ebp ;恢复ebp
+    ret
+```
+编译运行
+```shell
+
+# 输出elf格式目标文件，目的是将来要和gcc编译的elf格式进行目标文件链接，所以格式必须相同
+# 之后使用gcc编译建议加参数-m 32( gcc -m32 -c bar.c -o bar.o ) 原因是因为nasm编译的代码是在32位下的，所以gcc编译的也要在32位才兼容
+nasm -f elf -o syscall_write.o syscall_write.asm
+
+ld -m elf_i386 -o syscall_write.bin syscall_write.o
+# 如果不加 -m elf_i386 参数可能会产生这个错误
+# error --- ld: i386 架构于输入文件 syscall_write.o 与 i386:x86-64 输出不兼容
+
+# +x权限
+chmod u+x ./syscall_write.bin
+
+# 输出：
+# c library says: hello world!
+# syscall says: hello world!
+
+```
+
+
+### 实现自己的打印函数
+
+1. 获取光标的位置，25行*80字节，整个屏幕容纳2000个字符，所以光标的位置是0～2000的索引值
+2. 获取打印字符，从栈中获取，由调用者将参数入栈
+3. 判断如果字符是换行(LF)或者回车(CR)
+    1. 先将光标移到行首
+    2. 然后再加上一行的索引值(80)
+    3. 判断是否超过超过整个屏幕(2000)
+    4. 如果超过需要滚屏
+        1. 将1～23行的数据以此拷贝到0～22行
+        2. 最后一样用空字符填充
+    5. 如果没有超过，就记录光标的位置，把光标的位置写到显存中去显示
+4. 如果字符是回退符(backspace)
+    1. 将光标的索引减1
+    2. 写入空格字符
+    3. 然后将光标的位置写入显存中去，显示光标位置
+5. 如果是其它可显示字符，直接将字符写入到光标位置，然后光标位置加1，再将光标位置写入显存。
+
+#### 程序汇总
+此处将现阶段的所有代码列出来
+```text
+code
+  |---boot
+  |     |---mbr.S
+  |     |---loader.S
+  |     |---include
+  |     |       |---boot.inc
+  |---lib
+  |     |---stdint.h
+  |     |---kernel
+  |     |       |---print.S
+  |     |       |---print.h
+  |---kernel
+  |     |---main.c
+```
+##### MBR引导程序
+```asm
+;主引导程序 
+;------------------------------------------------------------
+%include "boot.inc"
+SECTION MBR vstart=0x7c00         
+   mov ax,cs      
+   mov ds,ax
+   mov es,ax
+   mov ss,ax
+   mov fs,ax
+   mov sp,0x7c00
+   mov ax,0xb800
+   mov gs,ax
+
+; 清屏
+;利用0x06号功能，上卷全部行，则可清屏。
+; -----------------------------------------------------------
+;INT 0x10   功能号:0x06	   功能描述:上卷窗口
+;------------------------------------------------------
+;输入：
+;AH 功能号= 0x06
+;AL = 上卷的行数(如果为0,表示全部)
+;BH = 上卷行属性
+;(CL,CH) = 窗口左上角的(X,Y)位置
+;(DL,DH) = 窗口右下角的(X,Y)位置
+;无返回值：
+   mov     ax, 0600h
+   mov     bx, 0700h
+   mov     cx, 0                   ; 左上角: (0, 0)
+   mov     dx, 184fh		   ; 右下角: (80,25),
+				   ; 因为VGA文本模式中，一行只能容纳80个字符,共25行。
+				   ; 下标从0开始，所以0x18=24,0x4f=79
+   int     10h                     ; int 10h
+
+   ; 输出字符串:MBR
+   mov byte [gs:0x00],'1'
+   mov byte [gs:0x01],0xA4
+
+   mov byte [gs:0x02],' '
+   mov byte [gs:0x03],0xA4
+
+   mov byte [gs:0x04],'M'
+   mov byte [gs:0x05],0xA4	   ;A表示绿色背景闪烁，4表示前景色为红色
+
+   mov byte [gs:0x06],'B'
+   mov byte [gs:0x07],0xA4
+
+   mov byte [gs:0x08],'R'
+   mov byte [gs:0x09],0xA4
+	 
+   mov eax,LOADER_START_SECTOR	 ; 起始扇区lba地址
+   mov bx,LOADER_BASE_ADDR       ; 写入的地址
+   mov cx,4			 ; 待读入的扇区数
+   call rd_disk_m_16		 ; 以下读取程序的起始部分（一个扇区）
+  
+   jmp LOADER_BASE_ADDR + 0x300
+       
+;-------------------------------------------------------------------------------
+;功能:读取硬盘n个扇区
+rd_disk_m_16:	   
+;-------------------------------------------------------------------------------
+				       ; eax=LBA扇区号
+				       ; ebx=将数据写入的内存地址
+				       ; ecx=读入的扇区数
+      mov esi,eax	  ;备份eax
+      mov di,cx		  ;备份cx
+;读写硬盘:
+;第1步：设置要读取的扇区数
+      mov dx,0x1f2
+      mov al,cl
+      out dx,al            ;读取的扇区数
+
+      mov eax,esi	   ;恢复ax
+
+;第2步：将LBA地址存入0x1f3 ~ 0x1f6
+
+      ;LBA地址7~0位写入端口0x1f3
+      mov dx,0x1f3                       
+      out dx,al                          
+
+      ;LBA地址15~8位写入端口0x1f4
+      mov cl,8
+      shr eax,cl
+      mov dx,0x1f4
+      out dx,al
+
+      ;LBA地址23~16位写入端口0x1f5
+      shr eax,cl
+      mov dx,0x1f5
+      out dx,al
+
+      shr eax,cl
+      and al,0x0f	   ;lba第24~27位
+      or al,0xe0	   ; 设置7〜4位为1110,表示lba模式
+      mov dx,0x1f6
+      out dx,al
+
+;第3步：向0x1f7端口写入读命令，0x20 
+      mov dx,0x1f7
+      mov al,0x20                        
+      out dx,al
+
+;第4步：检测硬盘状态
+  .not_ready:
+      ;同一端口，写时表示写入命令字，读时表示读入硬盘状态
+      nop
+      in al,dx
+      and al,0x88	   ;第4位为1表示硬盘控制器已准备好数据传输，第7位为1表示硬盘忙
+      cmp al,0x08
+      jnz .not_ready	   ;若未准备好，继续等。
+
+;第5步：从0x1f0端口读数据
+      mov ax, di
+      mov dx, 256
+      mul dx
+      mov cx, ax	   ; di为要读取的扇区数，一个扇区有512字节，每次读入一个字，
+			   ; 共需di*512/2次，所以di*256
+      mov dx, 0x1f0
+  .go_on_read:
+      in ax,dx
+      mov [bx],ax
+      add bx,2		  
+      loop .go_on_read
+      ret
+
+   times 510-($-$$) db 0
+   db 0x55,0xaa
+```
+##### loader程序
+```
+   %include "boot.inc"
+   section loader vstart=LOADER_BASE_ADDR
+;构建gdt及其内部的描述符
+   GDT_BASE:   dd    0x00000000 
+	       dd    0x00000000
+
+   CODE_DESC:  dd    0x0000FFFF 
+	       dd    DESC_CODE_HIGH4
+
+   DATA_STACK_DESC:  dd    0x0000FFFF
+		     dd    DESC_DATA_HIGH4
+
+   VIDEO_DESC: dd    0x80000007	       ; limit=(0xbffff-0xb8000)/4k=0x7
+	       dd    DESC_VIDEO_HIGH4  ; 此时dpl为0
+
+   GDT_SIZE   equ   $ - GDT_BASE
+   GDT_LIMIT   equ   GDT_SIZE -	1 
+   times 60 dq 0					 ; 此处预留60个描述符的空位(slot)
+   SELECTOR_CODE equ (0x0001<<3) + TI_GDT + RPL0         ; 相当于(CODE_DESC - GDT_BASE)/8 + TI_GDT + RPL0
+   SELECTOR_DATA equ (0x0002<<3) + TI_GDT + RPL0	 ; 同上
+   SELECTOR_VIDEO equ (0x0003<<3) + TI_GDT + RPL0	 ; 同上 
+
+   ; total_mem_bytes用于保存内存容量,以字节为单位,此位置比较好记。
+   ; 当前偏移loader.bin文件头0x200字节,loader.bin的加载地址是0x900,
+   ; 故total_mem_bytes内存中的地址是0xb00.将来在内核中咱们会引用此地址
+   total_mem_bytes dd 0					 
+   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+   ;以下是定义gdt的指针，前2字节是gdt界限，后4字节是gdt起始地址
+   gdt_ptr  dw  GDT_LIMIT 
+	    dd  GDT_BASE
+
+   ;人工对齐:total_mem_bytes4字节+gdt_ptr6字节+ards_buf244字节+ards_nr2,共256字节
+   ards_buf times 244 db 0
+   ards_nr dw 0		      ;用于记录ards结构体数量
+
+   loader_start:
+   
+;-------  int 15h eax = 0000E820h ,edx = 534D4150h ('SMAP') 获取内存布局  -------
+
+   xor ebx, ebx		      ;第一次调用时，ebx值要为0
+   mov edx, 0x534d4150	      ;edx只赋值一次，循环体中不会改变
+   mov di, ards_buf	      ;ards结构缓冲区
+.e820_mem_get_loop:	      ;循环获取每个ARDS内存范围描述结构
+   mov eax, 0x0000e820	      ;执行int 0x15后,eax值变为0x534d4150,所以每次执行int前都要更新为子功能号。
+   mov ecx, 20		      ;ARDS地址范围描述符结构大小是20字节
+   int 0x15
+   jc .e820_failed_so_try_e801   ;若cf位为1则有错误发生，尝试0xe801子功能
+   add di, cx		      ;使di增加20字节指向缓冲区中新的ARDS结构位置
+   inc word [ards_nr]	      ;记录ARDS数量
+   cmp ebx, 0		      ;若ebx为0且cf不为1,这说明ards全部返回，当前已是最后一个
+   jnz .e820_mem_get_loop
+
+;在所有ards结构中，找出(base_add_low + length_low)的最大值，即内存的容量。
+   mov cx, [ards_nr]	      ;遍历每一个ARDS结构体,循环次数是ARDS的数量
+   mov ebx, ards_buf 
+   xor edx, edx		      ;edx为最大的内存容量,在此先清0
+.find_max_mem_area:	      ;无须判断type是否为1,最大的内存块一定是可被使用
+   mov eax, [ebx]	      ;base_add_low
+   add eax, [ebx+8]	      ;length_low
+   add ebx, 20		      ;指向缓冲区中下一个ARDS结构
+   cmp edx, eax		      ;冒泡排序，找出最大,edx寄存器始终是最大的内存容量
+   jge .next_ards
+   mov edx, eax		      ;edx为总内存大小
+.next_ards:
+   loop .find_max_mem_area
+   jmp .mem_get_ok
+
+;------  int 15h ax = E801h 获取内存大小,最大支持4G  ------
+; 返回后, ax cx 值一样,以KB为单位,bx dx值一样,以64KB为单位
+; 在ax和cx寄存器中为低16M,在bx和dx寄存器中为16MB到4G。
+.e820_failed_so_try_e801:
+   mov ax,0xe801
+   int 0x15
+   jc .e801_failed_so_try88   ;若当前e801方法失败,就尝试0x88方法
+
+;1 先算出低15M的内存,ax和cx中是以KB为单位的内存数量,将其转换为以byte为单位
+   mov cx,0x400	     ;cx和ax值一样,cx用做乘数
+   mul cx 
+   shl edx,16
+   and eax,0x0000FFFF
+   or edx,eax
+   add edx, 0x100000 ;ax只是15MB,故要加1MB
+   mov esi,edx	     ;先把低15MB的内存容量存入esi寄存器备份
+
+;2 再将16MB以上的内存转换为byte为单位,寄存器bx和dx中是以64KB为单位的内存数量
+   xor eax,eax
+   mov ax,bx		
+   mov ecx, 0x10000	;0x10000十进制为64KB
+   mul ecx		;32位乘法,默认的被乘数是eax,积为64位,高32位存入edx,低32位存入eax.
+   add esi,eax		;由于此方法只能测出4G以内的内存,故32位eax足够了,edx肯定为0,只加eax便可
+   mov edx,esi		;edx为总内存大小
+   jmp .mem_get_ok
+
+;-----------------  int 15h ah = 0x88 获取内存大小,只能获取64M之内  ----------
+.e801_failed_so_try88: 
+   ;int 15后，ax存入的是以kb为单位的内存容量
+   mov  ah, 0x88
+   int  0x15
+   jc .error_hlt
+   and eax,0x0000FFFF
+      
+   ;16位乘法，被乘数是ax,积为32位.积的高16位在dx中，积的低16位在ax中
+   mov cx, 0x400     ;0x400等于1024,将ax中的内存容量换为以byte为单位
+   mul cx
+   shl edx, 16	     ;把dx移到高16位
+   or edx, eax	     ;把积的低16位组合到edx,为32位的积
+   add edx,0x100000  ;0x88子功能只会返回1MB以上的内存,故实际内存大小要加上1MB
+
+.mem_get_ok:
+   mov [total_mem_bytes], edx	 ;将内存换为byte单位后存入total_mem_bytes处。
+
+
+;-----------------   准备进入保护模式   -------------------
+;1 打开A20
+;2 加载gdt
+;3 将cr0的pe位置1
+
+   ;-----------------  打开A20  ----------------
+   in al,0x92
+   or al,0000_0010B
+   out 0x92,al
+
+   ;-----------------  加载GDT  ----------------
+   lgdt [gdt_ptr]
+
+   ;-----------------  cr0第0位置1  ----------------
+   mov eax, cr0
+   or eax, 0x00000001
+   mov cr0, eax
+
+   jmp dword SELECTOR_CODE:p_mode_start	     ; 刷新流水线，避免分支预测的影响,这种cpu优化策略，最怕jmp跳转，
+					     ; 这将导致之前做的预测失效，从而起到了刷新的作用。
+.error_hlt:		      ;出错则挂起
+   hlt
+
+[bits 32]
+p_mode_start:
+   mov ax, SELECTOR_DATA
+   mov ds, ax
+   mov es, ax
+   mov ss, ax
+   mov esp,LOADER_STACK_TOP
+   mov ax, SELECTOR_VIDEO
+   mov gs, ax
+
+; -------------------------   加载kernel  ----------------------
+   mov eax, KERNEL_START_SECTOR        ; kernel.bin所在的扇区号
+   mov ebx, KERNEL_BIN_BASE_ADDR       ; 从磁盘读出后，写入到ebx指定的地址
+   mov ecx, 200			       ; 读入的扇区数
+
+   call rd_disk_m_32
+
+   ; 创建页目录及页表并初始化页内存位图
+   call setup_page
+
+   ;要将描述符表地址及偏移量写入内存gdt_ptr,一会用新地址重新加载
+   sgdt [gdt_ptr]	      ; 存储到原来gdt所有的位置
+
+   ;将gdt描述符中视频段描述符中的段基址+0xc0000000
+   mov ebx, [gdt_ptr + 2]  
+   or dword [ebx + 0x18 + 4], 0xc0000000      ;视频段是第3个段描述符,每个描述符是8字节,故0x18。
+					      ;段描述符的高4字节的最高位是段基址的31~24位
+
+   ;将gdt的基址加上0xc0000000使其成为内核所在的高地址
+   add dword [gdt_ptr + 2], 0xc0000000
+
+   add esp, 0xc0000000        ; 将栈指针同样映射到内核地址
+
+   ; 把页目录地址赋给cr3
+   mov eax, PAGE_DIR_TABLE_POS
+   mov cr3, eax
+
+   ; 打开cr0的pg位(第31位)
+   mov eax, cr0
+   or eax, 0x80000000
+   mov cr0, eax
+
+   ;在开启分页后,用gdt新的地址重新加载
+   lgdt [gdt_ptr]             ; 重新加载
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;  此时不刷新流水线也没问题  ;;;;;;;;;;;;;;;;;;;;;;;;
+;由于一直处在32位下,原则上不需要强制刷新,经过实际测试没有以下这两句也没问题.
+;但以防万一，还是加上啦，免得将来出来莫句奇妙的问题.
+   jmp SELECTOR_CODE:enter_kernel	  ;强制刷新流水线,更新gdt
+enter_kernel:    
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+   call kernel_init
+   mov esp, 0xc009f000
+   jmp KERNEL_ENTRY_POINT                 ; 用地址0x1500访问测试，结果ok
+
+
+;-----------------   将kernel.bin中的segment拷贝到编译的地址   -----------
+kernel_init:
+   xor eax, eax
+   xor ebx, ebx		;ebx记录程序头表地址
+   xor ecx, ecx		;cx记录程序头表中的program header数量
+   xor edx, edx		;dx 记录program header尺寸,即e_phentsize
+
+   mov dx, [KERNEL_BIN_BASE_ADDR + 42]	  ; 偏移文件42字节处的属性是e_phentsize,表示program header大小
+   mov ebx, [KERNEL_BIN_BASE_ADDR + 28]   ; 偏移文件开始部分28字节的地方是e_phoff,表示第1 个program header在文件中的偏移量
+					  ; 其实该值是0x34,不过还是谨慎一点，这里来读取实际值
+   add ebx, KERNEL_BIN_BASE_ADDR
+   mov cx, [KERNEL_BIN_BASE_ADDR + 44]    ; 偏移文件开始部分44字节的地方是e_phnum,表示有几个program header
+.each_segment:
+   cmp byte [ebx + 0], PT_NULL		  ; 若p_type等于 PT_NULL,说明此program header未使用。
+   je .PTNULL
+
+   ;为函数memcpy压入参数,参数是从右往左依然压入.函数原型类似于 memcpy(dst,src,size)
+   push dword [ebx + 16]		  ; program header中偏移16字节的地方是p_filesz,压入函数memcpy的第三个参数:size
+   mov eax, [ebx + 4]			  ; 距程序头偏移量为4字节的位置是p_offset
+   add eax, KERNEL_BIN_BASE_ADDR	  ; 加上kernel.bin被加载到的物理地址,eax为该段的物理地址
+   push eax				  ; 压入函数memcpy的第二个参数:源地址
+   push dword [ebx + 8]			  ; 压入函数memcpy的第一个参数:目的地址,偏移程序头8字节的位置是p_vaddr，这就是目的地址
+   call mem_cpy				  ; 调用mem_cpy完成段复制
+   add esp,12				  ; 清理栈中压入的三个参数
+.PTNULL:
+   add ebx, edx				  ; edx为program header大小,即e_phentsize,在此ebx指向下一个program header 
+   loop .each_segment
+   ret
+
+;----------  逐字节拷贝 mem_cpy(dst,src,size) ------------
+;输入:栈中三个参数(dst,src,size)
+;输出:无
+;---------------------------------------------------------
+mem_cpy:		      
+   cld
+   push ebp
+   mov ebp, esp
+   push ecx		   ; rep指令用到了ecx，但ecx对于外层段的循环还有用，故先入栈备份
+   mov edi, [ebp + 8]	   ; dst
+   mov esi, [ebp + 12]	   ; src
+   mov ecx, [ebp + 16]	   ; size
+   rep movsb		   ; 逐字节拷贝
+
+   ;恢复环境
+   pop ecx		
+   pop ebp
+   ret
+
+
+;-------------   创建页目录及页表   ---------------
+setup_page:
+;先把页目录占用的空间逐字节清0
+   mov ecx, 4096
+   mov esi, 0
+.clear_page_dir:
+   mov byte [PAGE_DIR_TABLE_POS + esi], 0
+   inc esi
+   loop .clear_page_dir
+
+;开始创建页目录项(PDE)
+.create_pde:				     ; 创建Page Directory Entry
+   mov eax, PAGE_DIR_TABLE_POS
+   add eax, 0x1000 			     ; 此时eax为第一个页表的位置及属性
+   mov ebx, eax				     ; 此处为ebx赋值，是为.create_pte做准备，ebx为基址。
+
+;   下面将页目录项0和0xc00都存为第一个页表的地址，
+;   一个页表可表示4MB内存,这样0xc03fffff以下的地址和0x003fffff以下的地址都指向相同的页表，
+;   这是为将地址映射为内核地址做准备
+   or eax, PG_US_U | PG_RW_W | PG_P	     ; 页目录项的属性RW和P位为1,US为1,表示用户属性,所有特权级别都可以访问.
+   mov [PAGE_DIR_TABLE_POS + 0x0], eax       ; 第1个目录项,在页目录表中的第1个目录项写入第一个页表的位置(0x101000)及属性(3)
+   mov [PAGE_DIR_TABLE_POS + 0xc00], eax     ; 一个页表项占用4字节,0xc00表示第768个页表占用的目录项,0xc00以上的目录项用于内核空间,
+					     ; 也就是页表的0xc0000000~0xffffffff共计1G属于内核,0x0~0xbfffffff共计3G属于用户进程.
+   sub eax, 0x1000
+   mov [PAGE_DIR_TABLE_POS + 4092], eax	     ; 使最后一个目录项指向页目录表自己的地址
+
+;下面创建页表项(PTE)
+   mov ecx, 256				     ; 1M低端内存 / 每页大小4k = 256
+   mov esi, 0
+   mov edx, PG_US_U | PG_RW_W | PG_P	     ; 属性为7,US=1,RW=1,P=1
+.create_pte:				     ; 创建Page Table Entry
+   mov [ebx+esi*4],edx			     ; 此时的ebx已经在上面通过eax赋值为0x101000,也就是第一个页表的地址 
+   add edx,4096
+   inc esi
+   loop .create_pte
+
+;创建内核其它页表的PDE
+   mov eax, PAGE_DIR_TABLE_POS
+   add eax, 0x2000 		     ; 此时eax为第二个页表的位置
+   or eax, PG_US_U | PG_RW_W | PG_P  ; 页目录项的属性RW和P位为1,US为0
+   mov ebx, PAGE_DIR_TABLE_POS
+   mov ecx, 254			     ; 范围为第769~1022的所有目录项数量
+   mov esi, 769
+.create_kernel_pde:
+   mov [ebx+esi*4], eax
+   inc esi
+   add eax, 0x1000
+   loop .create_kernel_pde
+   ret
+
+
+;-------------------------------------------------------------------------------
+			   ;功能:读取硬盘n个扇区
+rd_disk_m_32:	   
+;-------------------------------------------------------------------------------
+							 ; eax=LBA扇区号
+							 ; ebx=将数据写入的内存地址
+							 ; ecx=读入的扇区数
+      mov esi,eax	   ; 备份eax
+      mov di,cx		   ; 备份扇区数到di
+;读写硬盘:
+;第1步：设置要读取的扇区数
+      mov dx,0x1f2
+      mov al,cl
+      out dx,al            ;读取的扇区数
+
+      mov eax,esi	   ;恢复ax
+
+;第2步：将LBA地址存入0x1f3 ~ 0x1f6
+
+      ;LBA地址7~0位写入端口0x1f3
+      mov dx,0x1f3                       
+      out dx,al                          
+
+      ;LBA地址15~8位写入端口0x1f4
+      mov cl,8
+      shr eax,cl
+      mov dx,0x1f4
+      out dx,al
+
+      ;LBA地址23~16位写入端口0x1f5
+      shr eax,cl
+      mov dx,0x1f5
+      out dx,al
+
+      shr eax,cl
+      and al,0x0f	   ;lba第24~27位
+      or al,0xe0	   ; 设置7～4位为1110,表示lba模式
+      mov dx,0x1f6
+      out dx,al
+
+;第3步：向0x1f7端口写入读命令，0x20 
+      mov dx,0x1f7
+      mov al,0x20                        
+      out dx,al
+
+;;;;;;; 至此,硬盘控制器便从指定的lba地址(eax)处,读出连续的cx个扇区,下面检查硬盘状态,不忙就能把这cx个扇区的数据读出来
+
+;第4步：检测硬盘状态
+  .not_ready:		   ;测试0x1f7端口(status寄存器)的的BSY位
+      ;同一端口,写时表示写入命令字,读时表示读入硬盘状态
+      nop
+      in al,dx
+      and al,0x88	   ;第4位为1表示硬盘控制器已准备好数据传输,第7位为1表示硬盘忙
+      cmp al,0x08
+      jnz .not_ready	   ;若未准备好,继续等。
+
+;第5步：从0x1f0端口读数据
+      mov ax, di	   ;以下从硬盘端口读数据用insw指令更快捷,不过尽可能多的演示命令使用,
+			   ;在此先用这种方法,在后面内容会用到insw和outsw等
+
+      mov dx, 256	   ;di为要读取的扇区数,一个扇区有512字节,每次读入一个字,共需di*512/2次,所以di*256
+      mul dx
+      mov cx, ax	   
+      mov dx, 0x1f0
+  .go_on_read:
+      in ax,dx		
+      mov [ebx], ax
+      add ebx, 2
+			  ; 由于在实模式下偏移地址为16位,所以用bx只会访问到0~FFFFh的偏移。
+			  ; loader的栈指针为0x900,bx为指向的数据输出缓冲区,且为16位，
+			  ; 超过0xffff后,bx部分会从0开始,所以当要读取的扇区数过大,待写入的地址超过bx的范围时，
+			  ; 从硬盘上读出的数据会把0x0000~0xffff的覆盖，
+			  ; 造成栈被破坏,所以ret返回时,返回地址被破坏了,已经不是之前正确的地址,
+			  ; 故程序出会错,不知道会跑到哪里去。
+			  ; 所以改为ebx代替bx指向缓冲区,这样生成的机器码前面会有0x66和0x67来反转。
+			  ; 0X66用于反转默认的操作数大小! 0X67用于反转默认的寻址方式.
+			  ; cpu处于16位模式时,会理所当然的认为操作数和寻址都是16位,处于32位模式时,
+			  ; 也会认为要执行的指令是32位.
+			  ; 当我们在其中任意模式下用了另外模式的寻址方式或操作数大小(姑且认为16位模式用16位字节操作数，
+			  ; 32位模式下用32字节的操作数)时,编译器会在指令前帮我们加上0x66或0x67，
+			  ; 临时改变当前cpu模式到另外的模式下.
+			  ; 假设当前运行在16位模式,遇到0X66时,操作数大小变为32位.
+			  ; 假设当前运行在32位模式,遇到0X66时,操作数大小变为16位.
+			  ; 假设当前运行在16位模式,遇到0X67时,寻址方式变为32位寻址
+			  ; 假设当前运行在32位模式,遇到0X67时,寻址方式变为16位寻址.
+
+      loop .go_on_read
+      ret
+```
+##### boot.inc
+```asm
+;-------------	 loader和kernel   ----------
+
+LOADER_BASE_ADDR equ 0x900 
+LOADER_STACK_TOP equ LOADER_BASE_ADDR
+LOADER_START_SECTOR equ 0x2
+
+KERNEL_BIN_BASE_ADDR equ 0x70000
+KERNEL_START_SECTOR equ 0x9
+KERNEL_ENTRY_POINT equ 0xc0001500
+
+;-------------   页表配置   ----------------
+PAGE_DIR_TABLE_POS equ 0x100000
+
+;--------------   gdt描述符属性  -----------
+DESC_G_4K   equ	  1_00000000000000000000000b   
+DESC_D_32   equ	   1_0000000000000000000000b
+DESC_L	    equ	    0_000000000000000000000b	;  64位代码标记，此处标记为0便可。
+DESC_AVL    equ	     0_00000000000000000000b	;  cpu不用此位，暂置为0  
+DESC_LIMIT_CODE2  equ 1111_0000000000000000b
+DESC_LIMIT_DATA2  equ DESC_LIMIT_CODE2
+DESC_LIMIT_VIDEO2  equ 0000_000000000000000b
+DESC_P	    equ		  1_000000000000000b
+DESC_DPL_0  equ		   00_0000000000000b
+DESC_DPL_1  equ		   01_0000000000000b
+DESC_DPL_2  equ		   10_0000000000000b
+DESC_DPL_3  equ		   11_0000000000000b
+DESC_S_CODE equ		     1_000000000000b
+DESC_S_DATA equ	  DESC_S_CODE
+DESC_S_sys  equ		     0_000000000000b
+DESC_TYPE_CODE  equ	      1000_00000000b	;x=1,c=0,r=0,a=0 代码段是可执行的,非依从的,不可读的,已访问位a清0.  
+DESC_TYPE_DATA  equ	      0010_00000000b	;x=0,e=0,w=1,a=0 数据段是不可执行的,向上扩展的,可写的,已访问位a清0.
+
+DESC_CODE_HIGH4 equ (0x00 << 24) + DESC_G_4K + DESC_D_32 + DESC_L + DESC_AVL + DESC_LIMIT_CODE2 + DESC_P + DESC_DPL_0 + DESC_S_CODE + DESC_TYPE_CODE + 0x00
+DESC_DATA_HIGH4 equ (0x00 << 24) + DESC_G_4K + DESC_D_32 + DESC_L + DESC_AVL + DESC_LIMIT_DATA2 + DESC_P + DESC_DPL_0 + DESC_S_DATA + DESC_TYPE_DATA + 0x00
+DESC_VIDEO_HIGH4 equ (0x00 << 24) + DESC_G_4K + DESC_D_32 + DESC_L + DESC_AVL + DESC_LIMIT_VIDEO2 + DESC_P + DESC_DPL_0 + DESC_S_DATA + DESC_TYPE_DATA + 0x0b
+
+;--------------   选择子属性  ---------------
+RPL0  equ   00b
+RPL1  equ   01b
+RPL2  equ   10b
+RPL3  equ   11b
+TI_GDT	 equ   000b
+TI_LDT	 equ   100b
+
+
+;----------------   页表相关属性    --------------
+PG_P  equ   1b
+PG_RW_R	 equ  00b 
+PG_RW_W	 equ  10b 
+PG_US_S	 equ  000b 
+PG_US_U	 equ  100b 
+
+
+;-------------  program type 定义   --------------
+PT_NULL equ 0
+```
+##### print.S
+```asm
+TI_GDT equ 0
+RPL0   equ 0
+
+SELECTOR_VIDEO equ (0x0003<<3) + TI_GDT + RPL0
+
+; 32位保护模式的代码
+[bits 32]
+
+section .text
+;------------------------ put_char ---------------
+; 功能描述，把栈中的一个字节写入到光标所在位置
+;-------------------------------------------------
+
+; 通过global吧函数put_char导出位全局符号
+; 这样对外部文件便可见了，通过声明便可以调用
+global put_char
+
+put_char:
+    ; 备份32位寄存器环境
+    ; 一共8个，他们入栈的顺序是:EAX->ECX->EDX->EBX->ESP->EBP->ESI->EDI
+    pushad
+
+    ; 需要保证gs中为正确的视频段选择子
+    ; 为保险起见，每次打印时都为gs赋值
+    ; 这个与系统调用高特权级回到低特权级时gs可能被置0有关
+    mov ax, SELECTOR_VIDEO
+    mov gs, ax
+
+    ; ------- 获取光标位置 -------
+    ; 先获取高8位
+    mov dx, 0x03D4
+    mov al, 0x0e
+    out dx, al
+    mov dx, 0x03D5
+    in al, dx
+    mov ah, al
+
+    ; 再获取低8位
+    mov dx, 0x03D4
+    mov al, 0x0f
+    out dx, al
+    mov dx, 0x03D5
+    in al, dx
+
+    ; 将光标位置存入到bx中
+    mov bx, ax
+
+    ; 获取打印的字符
+    ; pushad压入4*8=32个字节，加上调用函数的4个字节返回地址
+    mov ecx, [esp + 36]
+
+    ; CR 是0x0D, LF 是 0x0A,此处回车或换行统一为回车换行
+    cmp cl, 0xd
+    jz .is_carriage_return
+    cmp cl, 0xa
+    jz .is_line_feed
+
+    ; BS(backspace)的asc码是0x8
+    cmp cl, 0x8
+    jz .is_backspace
+    jmp .put_other
+
+;;;;;;;;;;;;;;;;;
+
+.is_backspace:
+    ; backspace本质上是移动光标向前一个显存位置即可，后面输入的字符
+    ; 自然就被覆盖了，但如果不输入就显得很怪。所以此处的做法是回退一个
+    ; 显存位置后，用空字符填充覆盖掉即可
+    dec bx ; bx - 1，显存位置-1，退一个显存位置，处于前一个字符位置
+    shl bx, 1 ; bx * 2，每个字符占用两个字节，bx只是位置索引*2表示该位置的偏移量
+
+    mov byte [gs:bx], 0x20 ; 填充空字符
+    inc bx
+    mov byte [gs:bx], 0x07 ; 填充空字符的属性
+    shr bx, 1
+    jmp .set_cursor
+
+.put_other:
+    ; 打印可见字符,原理类似回退格的逻辑
+    shl bx, 1
+    mov byte [gs:bx], cl
+    inc bx
+    mov byte [gs:bx], 0x07
+    shr bx, 1
+    inc bx
+
+    cmp bx, 2000
+    jl .set_cursor
+
+.is_line_feed:
+.is_carriage_return:
+; 如果是CR或者LF，直接移动到行首
+    xor dx, dx
+    mov ax, bx
+    mov si, 80
+
+    div si ; div 16位除法，dx存储余数，ax存储商
+
+    sub bx, dx 
+
+.is_carriage_return_end:
+    add bx, 80
+    cmp bx, 2000
+.is_line_feed_end:
+    jl .set_cursor
+
+; 屏幕行数显示范围0～24，滚屏原理将屏幕的1～24行搬到0～23行
+; 再将24行用空格填充
+; 另一种可缓存的实现复杂一些，这里简单实现
+
+.roll_screen:
+    cld ; 清除方向为，在eflags寄存器中
+    mov ecx, 960 ; 2000-80=1920个字符需要搬，1920*2=3840字节需要搬
+                 ; 一次搬4个字节，3840/4=960次搬运
+    mov esi, 0xc00b80a0 ; 第一行行首地址
+    mov edi, 0xc00b8000 ; 第0行行首
+
+    rep movsd ; 开始复制960次
+
+    ; 最后一行填充空白
+    mov ebx, 3840
+    mov ecx, 80
+
+.cls:
+    mov word [gs:ebx], 0x0720 ; 0x0720 黑底白字的空格键
+    add ebx, 2
+    loop .cls ; ecx 为条件 自动减1 直到为0 退出循环
+    mov bx, 1920 ; 光标放于最后一行行首
+
+.set_cursor:
+; 将光标设为bx的值
+    ; 1. 先设置高8位
+    mov dx, 0x03D4
+    mov al, 0x0e
+    out dx, al
+
+    mov dx, 0x03D5
+    mov al, bh
+    out dx, al
+
+    ; 2. 在设置高8位
+    mov dx, 0x03D4
+    mov al, 0x0f
+    out dx, al
+
+    mov dx, 0x03D5
+    mov al, bl
+    out dx, al
+
+.put_char_done:
+    popad
+    ret
+```
+##### print.h
+```asm
+#ifndef __LIB_KERNEL_PRINT_H
+#define __LIB_KERNEL_PRINT_H
+#include "stdint.h"
+void put_char(uint8_t char_asci);
+#endif
+```
+##### stdint.h
+```asm
+#ifndef __LIB_STDINT_H
+#define __LIB_STDINT_H
+typedef signed char int8_t;
+typedef signed short int int16_t;
+typedef signed int int32_t;
+typedef signed long long int int64_t;
+typedef unsigned char uint8_t;
+typedef unsigned short int uint16_t;
+typedef unsigned int uint32_t;
+typedef unsigned long long int uint64_t;
+#endif
+```
+##### 编译
+```shell
+# --------------- MBR
+# 将MBR程序放到硬盘的第一个扇区
+nasm -o mbr.bin mbr.S
+dd if=/root/bochs/mbr.bin of=/root/bochs/hd60M.img bs=512 count=1 conv=notrunc
+
+# --------------- loader
+nasm -I include/ -o mbr.bin mbr.asm
+dd if=/root/bochs/loader.bin of=/root/bochs/hd60M.img bs=512 count=4 seek=2 conv=notrunc
+
+# --------------- "内核"
+# 1. 将print.S编译成目标文件print.o 文件格式elf
+nasm -f elf -o lib/kernel/print.o lib/kernel/print.S 
+# 2. gcc编译内核程序main.c
+# -m32 以表示32位模式编译
+gcc -m32 -I lib/kernel/ -c -o kernel/main.o kernel/main.c
+# -------------------- 注：如果这里如下错误
+# /usr/include/gnu/stubs.h:7:27: 致命错误：gnu/stubs-32.h：没有那个文件或目录
+# include <gnu/stubs-32.h>
+#                           ^
+# 编译中断。
+# 解决办法：
+# 安装32位glibc库文件命令：
+sudo yum install glibc-devel.i686(安装C库文件)  
+# 安装32位glibc++库文件命令
+sudo  yum install libstdc++-devel.i686
+# ---------------------
+# 3. 链接程序
+ld -m elf_i386 -Ttext 0xc0001500 -e main -okernel.bin kernel/main.o lib/kernel/print.o 
+# 注：目标文件链接顺序是main.o在前，print.o在后
+# 详细解释：链接器最先处理的目标文件是参数中从左边数第一个(咱们这里是main.o)
+# 对于里面找不到的符号(这里是put_char)，链接器会将它记录下来，以备在后面的目标文件中查找。
+# 如果将其顺序颠倒，势必导致在后面的目标文件中才出现找不到符号的情况
+# 而该符号的实现所在的目标文件早己经过去了，这可能使链接器内部采用另外的处理流程
+# 导致出来的可执行程序不太一样
+
+# 如果不加 -m elf_i386
+# ld: i386 架构于输入文件 kernel/main.o 与 i386:x86-64 输出不兼容
+# ld: i386 架构于输入文件 lib/kernel/print.o 与 i386:x86-64 输出不兼容
+
+# 4. 最后一步就是将内核的程序写到硬盘中，第10个扇区开始写
+dd if=./kernel.bin of=/root/bochs/hd60M.img bs=512 count=200 seek=9 conv=notrunc
+```
+
+
+
+
+
+
+
+
+## 附录
+
+### Failed to load SELinux policy freezing
+1. 重启系统时候在如下页面选择你要进的内核，按E，grub编辑页面
+2. 通过键盘的向上或向下箭头，找到linux16那行 在LANG=zh_CN.UTF-8 空格加上selinux=0或者 enforcing=0（我是第一个就解决问题了）
+3. 不要退出页面，在此处使用Ctrl+x启动，之后等会就会看到熟悉的页面了
+4. 修改配置文件/etc/selinux/config/中的“SELINUX”参数 SELINUX=disabled
