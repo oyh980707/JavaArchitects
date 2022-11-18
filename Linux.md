@@ -4041,3 +4041,20 @@ vim /etc/sudoers
 置会原来的权限：chmod 440 /etc/sudoers
 
 退出即可使用sudo了
+
+
+2. linux执⾏java命令报错exec format error：java
+
+我是在mac下解压下载的linux版本jdk，所以会报错格式不对，只需要下载dmg mac版本的就可以了
+
+3. 报错错误的ELF相关的错误信息
+```text
+-bash: /big_date/jdk1.8.0_333/bin/java: /lib/ld-linux.so.2: bad ELF interpreter: 
+```
+出现这种情况的原因是因为当前环境缺少相关依赖包 glibc
+#安装依赖包即可
+yum -y install glibc.i686
+
+简单来说，glibc是gnu发布的libc库，即c运行库。glibc是linux系统中最底层的api，几乎其它任何运行库都会依赖于glibc，像一个支架一般撑起整个作业系统。
+
+
