@@ -3529,13 +3529,31 @@ dd if=./kernel.bin of=/root/bochs/hd60M.img bs=512 count=200 seek=9 conv=notrunc
 
 在CPU内部有个中断描述符表寄存器(Interrupt Descriptor Table Register, IDTR)，该寄存器分为两部分：第O~ 15位是表界眼，即IDT大小减1，第16~47位是IDT的基地址，和GDTR是一样的原理。只有寄存器IDTR指向了IDT，当CPU接收到中断向量号时才能找到中断向量处理程序，这样中断系统才能正常运作。
 
-16位的表界限，表明最大范围0xffff，即64KB。可容纳的描述符个数为 64KB/8=8KB=8192个。需要注意的是GDT中的第0个描述符是不可用的，但是IDT的第0个描述符是可用的，而且第0个描述符表示除法错误。由于处理器只支持255个中断，即0～254，其余的描述符不可用，在门描述符中有个P位，没有用到的描述符将P位置为0，表示描述符的中断处理程序不在内存中。
+16位的表界限，表明最大范围0xffff，即64KB。可容纳的描述符个数为 64KB/8=8KB=8192个。需要注意的是GDT中的第0个描述符是不可用的，但是IDT的第0个描述符是可用的，而且第0个描述符表示除法错误。由于处理器只支持256个中断，即0～255，其余的描述符不可用，在门描述符中有个P位，没有用到的描述符将P位置为0，表示描述符的中断处理程序不在内存中。
 
 同加载GDTR一样，加载IDTR也有个专门的指令——lidt
 
 lidt 48位内存数据
 
 ![](./images/%E4%B8%AD%E6%96%AD%E6%8F%8F%E8%BF%B0%E7%AC%A6%E8%A1%A8%E5%AF%84%E5%AD%98%E5%99%A8IDTR.png)
+
+### 中断分类
+
+中断就是发生了某种事件需要通知CPU处理，把中断按事件来源分类，来自CPU外部的中断就称为外部中断，来自CPU内部的中断称为内部中断。其实还可以再细分，外部中断按是否导致窑机来划分，可分为可屏蔽中断和不可屏蔽中断两种，而内部中断按中断是否正常来划分，可分为软中断和异常。
+
+#### 外部中断
+
+外部中断是指来自CPU外部的中断，而外部的中断源必须是某个硬件，所以外部中断又称为硬件中断。
+
+为了让CPU获得每个外部设备的中断信号，最好的方式是在CPU中为每一个外设准备一个引脚接收中断， 但这是不可能的。CPU为大家提供了两条信号线。外部硬件的中断是通过两根信号线通知CPU的，这两根信号线就是INTR (INTeRrupt)和NMI(Non Maskable Interrupt)
+
+![](./images/%E5%A4%96%E9%83%A8%E4%B8%AD%E6%96%AD%E7%B1%BB%E5%9E%8B.png)
+
+#### 内部中断
+
+内部中断可分为软中断和异常。
+- 软中断，就是由软件主动发起的中断，因为它来自于软件，所以称之为软中断。由于该中断是软件运行中主动发起的，所以它是主观上的，井不是客观上的某种内部错误。
+- 异常是另一种内部中断，是指令执行期间CPU内部产生的错误引起的。由于是运行时错误，所以它不受标志寄存器eflags中IF位影响。
 
 ### 中断处理过程
 
@@ -3562,7 +3580,8 @@ lidt 48位内存数据
 
 当然可以在中断处理程序中将IF位打开，这样便可以根据需要优先处理更高特权级的中断。有些eflags中的位需要以pushf压到战中修改后再弹回的方式修改，这样有内存参与的操作必须是低效率，而且此操作是由多个步骤完成的，执行过程中容易被拆开，不能保证操作的原子性。所以处理器提供了专门用于控制IF位的指令，指令cli使IF位为0，这称为关中断，指令sti使IF位为1，这称为开中断。
 
-解释NT和TF位
+#### 解释NT和TF位
+
 进入中断时要把NT位和TF位置为0。TF表示Trap Flag，也就是陷阱标志位，这用在调试环境中，当TF为0时表示禁止单步执行，进入中断后将TF置为0，表示不允许中断处理程序单步执行。
 NT位表示Nest Task Flag，即任务嵌套标志位，也就是用来标记任务嵌套调用的情况。任务嵌套调用是指CPU将当前正执行的旧任务挂起，转去执行另外的新任务，待新任务执行完后，CPU再回到旧任务继续执行。在执行新任务前CPU做两件事，为了能够回到旧任务：
 1、将旧任务TSS选择子写到了新任务TSS中的“上一个任务TSS的指针”字段中
@@ -3571,9 +3590,1940 @@ NT位表示Nest Task Flag，即任务嵌套标志位，也就是用来标记任�
 如何回到旧任务就用到NT位了，当CPU执行iret时，它会去检查NT位的值，如果NT位为1，这说明当前任务是被嵌套执行的，因此会从自己TSS中“上一个任务TSS的指针”字段中获取旧任务，然后去执行该任 务。如果NT位的值为0，这表示当前是在中断处理环境下，于是就执行正常的中断退出流程。
 
 
+### 可编程中断控制器 8259A
+
+#### 介绍
+
+Intel 8259A 芯片，就是可编程中断控制器(PIC) 8259A。它用于管理和控制可屏蔽中断，它表现在屏蔽外设中断，其中就包括来自时钟的中断等，对它们实行优先级判决，向CPU提供中断向量号等功能。称为可编程的原因，就是可以通过编程的方式来设置以上的功能。
+
+#### 级联
+
+Intel 处理器共支持256个中断，但8259A只可以管理8个中断。没关系可以将多个8259A组合，官方术语就是级联。若采用级联方式，即多片8259A芯片串连在一起，最多可级联9个，也就是最多支持64个中断。级联时只能有一片8259A为主片master，其余的均为从片slave。来自从片的中断只能传递给主片，再由主片向上传递给CPU，也就是说只有主片才会向CPU发送INT中断信号。
+
+由于单个8259A芯片只有8个中断请求信号线: IRQO ~ IRQ7，它提供了一种组合的方式，可以将多个自己像串联电路一样组合在一起了提供更多的中断请求信号线，这种组合方式就称为级联(cascade)。有点类似路由器网线接口不够用，买个交换机做扩展。
+
+在咱们的个人电脑中只有两片8259A芯片，一共16个IRQ接口。不过单独使用哪个芯片都只能支持8个中断源，它们只有通过级联后才能都利用上，最多也只是支持15个中断。因为级联一个从片，要占用主片一个 IRQ接口，而从片上的IRQ接口不被占用，从片上有专门的接口用于级联。
+
+![](./images/%E4%B8%AA%E4%BA%BA%E8%AE%A1%E7%AE%97%E6%9C%BA%E4%B8%AD%E7%9A%84%E7%BA%A7%E8%81%94%208259A.png)
+
+#### 8259A内部的工作流程
+
+![](./images/8259A%E8%8A%AF%E7%89%87%E5%86%85%E9%83%A8%E7%BB%93%E6%9E%84.png)
+
+- INT: 8259A选出优先级最高的中断请求后，发信号通知CPU
+- INTA: INT Acknowledge，中断响应信号。位于8259A中的INTA接收来自CPU的INTA接口的中断响应信号
+- IMR: Interrupt Mask Register，中断屏蔽寄存器，宽度是8位，用来屏蔽某个外设的中断。
+- IRR: Interrupt Request Register，中断请求寄存器，宽度是8位。它的作用是接受经过IMR 寄存器过滤后的中断信号并锁存，此寄存器中全是等待处理的中断，“相当于” 5259A维护的未处理中断信号队列。
+- PR: Priority Resolver，优先级仲裁器。当有多个中断同时发生，或当有新的中断请求进来时，将它与当前正在处理的中断进行比较，找出优先级更高的中断。
+- ISR: In-Service Register，中断服务寄存器，宽度是8位。当某个中断正在被处理时，保存在此寄存器中。
+
+当某个外设发出一个中断信号时
+1. 由于主板上已经将信号通路指向了8259A芯片的某个IRQ接口，所以该中断信号最终被送入了8259A。
+2. 8259A首先检查IMR寄存器中是否已经屏蔽了来自该IRQ接口的中断信号。在IMR寄存器中的位为1，则表示中断屏蔽，为0则表示中断放行。如果该IRQ对应的相应位己经被置1，即表示来自该IRQ接口上的中断已经被屏蔽了，则将该中断信号丢弃，否则将其送入IRR寄存器，将该IRQ接口所在IRR寄存器中对应的BIT置1。
+3. 在某个恰当时机，优先级仲裁器PR会从IRR寄存器中挑选一个优先级最大的中断，就是IRQ接口号越低，优先级越大，所以IRQO优先级最大。8259A会在控制电路中，通过INT接口向CPU发送INTR信号。信号被送入了CPU的INTR接口后，于是CPU将手里的指令执行完后，马上通过自己的INTA接口向8259A的INTA接口回复一个中断响应信号，8259A在收到这个信号后，立即将刚才选出来的优先级最大的中断在ISR寄存器中对应的BIT置1，此寄存器表示当前正在处理的中断，同时要将该中断从“待处理中断队列”寄存器IRR中去掉，也就是在IRR中将该中断对应的BIT置0。
+4. CPU将再次发送INTA信号给8259A，这一次是想获取中断对应的中断向量号，由于大部分情况下8259A的起始中断向量号并不是0，所以用 起始中断向量号+IRQ接口号 便是该设备的中断向量号
+5. 8259A将此中断向量号通过系统数据总线发送给CPU。CPU从数据总线上拿到该中断向量号后，用它做中断向量表或中断描述符表中的索引，找到相应的中断处理程序井去执行。
+
+6. 中断处理程序结束处必须有向8259A发送EOI的代码。
+
+    - 如果8259A的“EOI通知(End Of Interrupt)” 若被设置为非自动模式(手工模式)，8259A在收到EOI后，将当前正处理的中断在ISR寄存器中对应的BIT置0
+    - 如果“EOI通知”被设置为自动模式，在CPU向8259A要中断向量号的那个INTA, 8259A会自动将此中断在ISR中对应的BIT置0。
+
+
+#### 8259A的实现
+
+8259A称为可编程中断控制器，就说明它的工作方式很多，咱们就要通过编程把它设置成需要的样子。对它的编程也很简单，就是对它进行初始化，设置主片与从片的级联方式，指定起始中断向量号以及设置各种工作模式。
+
+在8259A内部有两组寄存器，一组是初始化命令寄存器组，用来保存初始化命令字（Initialization Command Words, ICW）ICW共4个，ICW1 ~ ICW4。另一组寄存器是操作命令寄存器组，用来保存操 作命令字（Operation Command Word, OCW），OCW共3个， OCW1 ~ OCW3。所以我们对8259A的 编程，也分为初始化和操作两部分。
+
+- 初始化
+
+用ICW做初始化，用来确定是否需要级联，设置起始中断向量号，设置中断结束模式。其编程就是往8259A的端口发送一系列ICW。由于从一开始就要决定8259A的工作状态，所以要一次性写入很多设置，某些设置之间是具有关联、依赖性的，也许后面的某个设置会依赖前面某个ICW写入的设置，所以这部分要求严格的顺序，必须依次写入ICW1、ICW2, ICW3、ICW4。
+
+- 操作
+
+用OCW来操作控制8259A，前面所说的中断屏蔽和中断结束，就是通过往8259A端口发送OCW实现的。OCW的发送顺序不固定，3个之中先发送哪个都可以。
+
+##### ICW1
+
+ICW1用来初始化8259A的连接方式和中断信号的触发方式。连接方式是指用单片工作，还是用多片级联工作，触发方式是指中断请求信号是电平触发，还是边沿触发。
+
+注：ICW1需要写入到主片的0x20端口和从片的0xA0端口
+
+![](./images/ICW1%E6%A0%BC%E5%BC%8F.png)
+
+IC4：表示是否要写入ICW4，并不是所有的ICW初始化控制字都需要用到。IC4为1时表示需要在后面写入ICW4，为0则不需要。注意，x86系统IC4必须为1。
+
+SNGL：表示single，若SNGL为1，表示单片，若SNGL为0，表示级联(cascade)。若在级联模式下，这要涉及到主片(1个)和从片(多个〉用哪个IRQ接口互相连接的问题，所以当SNGL为0时，主片和从片也是需要ICW3的。
+
+ADI：表示call address interval，用来设置8085的调用时间间隔，x86不需要设置。
+LTIM：表示level/edge triggered mode，用来设置中断检测方式，LTIM为0表示边沿触发，LTIM为1表示电平触发。
+
+第4位的1是固定的，这是ICW1的标记。
+
+第5 ~ 7位专用于8085处理器，x86不需要，直接置为0即可。
+
+##### ICW2
+
+![](./images/ICW2.png)
+
+用来设置起始中断向量号，就是前面所说的硬件IRQ接口到逻辑中断向量号的映射。由于每个8259A芯片上的IRQ接口是顺序排列的，所以咱们这里的设置就是指定IRQ0映射到的中断向量号，其他IRQ接口对应的中断向量号会顺着自动排下去。
+
+注意：ICW2需要写入到主片的0x21端口和从片的0xAl端口
+
+##### ICW3
+
+![](./images/%E4%B8%BB%E7%89%87ICW3.png)
+
+![](./images/%E4%BB%8E%E7%89%87ICW3.png)
+
+
+仅在级联的方式下才需要(如果ICW1中的SNGL为0)，用来设置主片和从片用哪个IRQ接口互连。
+
+注：ICW3需要写入主片的0x21端口及从片的0xA1端口.
+
+##### ICW4
+
+![](./images/ICW4.png)
+
+ICW4有些低位的选项基于高位
+
+第7 ~ 5位未定义，直接置为0即可。
+
+SFNM：表示特殊全嵌套模式(Special Fully Nested Mode)，若SFNM为0，则表示全嵌套模式，若SFNM为1，则表示特殊全嵌套模式。
+
+BUF：表示8259A芯片是否工作在缓冲模式。BUF为0，则工作非缓冲模式，BUF为1，则工作在缓冲模式。当多个8259A级联时，如果工作在缓冲模式下，M/S用来规定本8259A是主片，还是从片。若M/S为1，则表示则表示是主片，若M/S为0，则表示是从片。若工作在非缓冲模式(BUF为O)下，M/S无效。
+
+AEOI：表示自动结束中断(Auto End Of Interrupt), 8259A在收到中断结束信号时才能继续处理下一个中断，此项用来设置是否要让8259A自动把中断结束。若AEOI为0，则表示非自动，即手动结束中断，咱们可以在中断处理程序中或主函数中手动向8259A的主、从片发送EOI信号。这种“操作”类命令， 通过OCW进行。若AEOI为1，则表示自动结束中断。
+
+μPM：表示微处理器类型( microprocessor)，此项是为了兼容老处理器。若μPM为0，则表示8080或8085处理器，若μPM为1，则表示x86处理器。
+
+##### OCW1
+
+![](./images/OCW1.png)
+
+OCW1用来屏蔽连接在8259A上的外部设备的中断信号，实际上就是把OCW1写入了IMR寄存器。这里的屏蔽是说是否把来自外部设备的中断信号转发给CPU。由于外部设备的中断都是可屏蔽中断，所以最终还是要受标志寄存器eflags中的IF位的管束，若IF为0，可屏蔽中断全部被屏蔽，在IF为0的情况下，即使8259A把外部设备的中断向量号发过来，CPU也置之不理。
+
+注意：OCW1要写入主片的0x21或从片的0xA1端口。
+
+##### OCW2
+
+![](./images/OCW2.png)
+
+SL：优先级模式设置和中断结束都可以基于此开关做更细粒度的控制。
+
+OCW2其中的一个作用就是发EOI信号结束中断。如果使SL为1，可以用ORW2的低3位(L2 ~ L0)来指定位于ISR寄存器中的哪一个中断被终止，也就是结束来自哪个IRQ接口的中断信号。如果SL位为O，L2 ~ L0 便不起作用了，8259A会自动将正在处理的中断结束，也就是把ISR寄存器中优先级最高的位清0。
+
+OCW2另一个作用就是设置优先级控制方式，这是用R位(第7位)来设置的。如果R为0，表示固定优先级方式，即IRQ接口号越低，优先级越高。如果R为1，表明用循环优先级方式，这样优先级会在0 ~ 7内循环，即当某级别的中断被处理完成后，它的优先级别将变成最低，将最高优先级传给之前较之低一级别的中断请求，其他依次类推。另外就是可以打开SL开关，使SL为1，再通过L2 ~ L0指定最低优先级循环优先级是哪个IRQ接口。
+
+R（Rotation）：表示是否按照循环方式设置中断优先级。R为1表示优先级自动循环，R为0表示不自动循环，采用固定优先级方式。
+
+SL（Specific Level）：表示是否指定优先等级。等级是用低3位来指定的。此处的SL只是开启低3位的开关，所以SL也表示低3位的L2 ~ L0是否有效。SL为1表示有效，SL为0表示无效。
+
+EOI（End Of Interrupt）：为中断结束命令位。EOI为1，则会令ISR寄存器中的相应位清0，也就是 将当前处理的中断清掉，表示处理结束。向8259A主动发送EOI是手工结束中断的做法，所以使用此命令有个前提就是ICW4中的AEOI位为0，非自动结束中断时才用。
+
+第4 ~ 3位的00是OCW2的标识。
+
+OCW2的高三位组合总结表
+![](./images/OCW2%E9%AB%98%E4%BD%8D%E5%B1%9E%E6%80%A7%E7%BB%84%E5%90%88.png)
+
+##### OCW3
+
+![](./images/OCW3.png)
+
+OCW3用来设定特殊屏蔽方式及查询方式，暂时用不上，用上再补充。
+
+注：OCW3要写入主片的0x20端口或从片的0xA0端口
+
+### 可编程计数器/定时器 8253
+
+#### 简介
+
+在8253内部有3个独立的计数器，分别是计数器0 ~ 计数器2，它们的端口分别是0x40 ~ 0x42。计数器又称为通道，每个计数器都完全相同，都是16位大小，他们独立工作，互不干涉。寄存器资源包括一个16位的计数初值寄存器、一个计数器执行部件和一个输出锁存器。计数器执行部件是计数器中真正进行计数工作的元器件，其本质是个减法计数器。
+
+![](./images/8253%E5%86%85%E9%83%A8%E7%BB%93%E6%9E%84%E7%AE%80%E5%9B%BE%E5%92%8C%E8%AE%A1%E6%95%B0%E5%99%A8%E5%86%85%E9%83%A8%E7%BB%93%E6%9E%84%E5%9B%BE.png)
+
+每个计数器都有三个引脚: CLK，GATE，OUT。
+- CLK表示时钟输入信号，即计数器自己的时钟频率。每当此引脚收到一个时钟信号，减法计数器就将计数值减1。连接到此引脚的脉冲频率最高为lOMHz。8253为2MHz。
+- GATE表示门控输入信号，在某些工作方式下用于控制计数器是否可以开始计数，在不同工作方式下 GATE的作用不同
+- OUT表示计数器输出信号。当定时工作结束，也就是计数值为0时，根据计数器的工作方式，会在OUT引脚上输出相应的信号。此信号用来通知处理器或某个设备：定时完成。这样处理器或外部设备便可以执行相应的行为动作。
+
+####  控制字
+
+控制字寄存器，其操作端口是Ox43，它是8位大小的寄存器。控制字寄存器也称为模式控制寄存器，在控制字寄存器中保存的内容称为控制字，控制字用来设置所指定的计数器(通道)的工作方式、读写格式及数制。
+
+![](./images/8253%E6%8E%A7%E5%88%B6%E5%AD%97%E6%A0%BC%E5%BC%8F.png)
+
+#### 工作方式
+
+- 强制终止：有些工作方式中，计数器是重复计数的，当计时到期(计数值为0)后，减法计数器又会重新把计数初值寄存器中的值重新载入，继续下一轮计数。只能通过外加控制信号来将其计数过程终止，是是破坏启动计数的条件：将GATE置为0即可。
+- 自动终止：有些工作方式中，计数器是单次计数，只要定时(计数)一到期就停止，不再进行下一轮计数，所以计数过程自然就自动终止了。
+
+六种工作方式
+
+1. 方式0：计数结束中断方式(Interrupt on Terminal Count)
+
+    作为事件计数器，该方式中对8253任意计数器通道写入控制字，都会使该计数器通道的OUT变为低电平，当GATE为高电平(条件1)，并且计数初值己经被写入计数器(条件2)后，计数工作会在下一个时钟信号(CLK)的下降沿开始。计数工作由软件启动，故当处理器用out指令将计数初值写入计数器，然后到计数器开始减1，这之间有一个时钟脉冲的延迟，之后CLK引脚每次收到一个脉冲信号，减法计数器就会将计数值减1。当计数值递减为0时，OUT引脚由低电平变为高电平，这是个由低到高的正跳变信号。此信号可以接在中断代理芯片8259A的中断引脚IR0上，所以此信号可以用来向处理器发出中断，故称为计数结束“中断”方式 。
+
+2. 方式1：硬件可重触发单稳方式(Hardware Retriggerable One-Shot)
+
+    作为可编程单稳态触发器，其触发信号是GATE，这是由硬件来控制的。由处理器将计数初值写入计数器后，等待外部门控脉冲信号GATE由低到高的上升沿出现，这是由硬件启动的，之后才会在下一个时钟信号CLK的下降沿开始启动计数，同时会将OUT引脚变为低电平。每当CLK引脚收到一个时钟脉冲信号时，在其下降沿减法计数器便开始对计数值减1，当计数为0时，OUT引脚产生由低到高的正跳变信号。
+
+3. 方式2：比率发生器(Rate Generator)
+
+分频器，也将选用此方式作为计数器来改变时钟中断的频率。分频器的作用是把输入频率变成符合要求的输出频率，其作用就像个变速箱。当处理器把控制字写入到计数器后，OUT端变为高电平。在GATE为高电平的前提下，处理器将计数初值写入后，在下一个CLK时钟脉冲的下降沿，计数器开始启动计数，这属于软件启动。当计数值为1时，OUT端由高电平变为低电平，此低电平的状态一直到计数为0，也就是持续一个CLK周期。当计数为0时，OUT端又变为高电平，同时计数初值又会被载入减法计数器，重新开始下一轮计数，从此周而复始地循环计数。
+
+4. 方式3：方波发生器(Square Wave Generator)
+
+    方波发生器，当处理器把控制字写入到计数器后，OUT端输出高电平。在GATE为高电平的前提下，在处理器把计数初值写入计数器后的下一个CLK时钟脉冲的下降沿，计数器开始计数。
+
+- 如果计数初值为偶数，在每一个CLK时钟脉冲发生时，计数值均减2，当计数值为0时，OUT端由高电平变为低电平，并且自动重新载入计数初值，开始下一轮计数。在新的一轮计数中，当计数值再次为0时，OUT端又会变成高电平，同时再次载入计数初值，又开始一轮新的计数。
+- 如果计数初值为奇数，并且OUT端为高电平，则在第一个时钟脉冲的下降沿将计数减1，这样剩下的计数值便为偶数了，所以在之后的每个时钟脉冲，计数值都被减2。当计数值变为0时，OUT端又变成低电平，同时自动从计数初值寄存器中载入计数初值开始下一轮计数。在新一轮计数中，第一个时钟脉冲会将计数值减3，这样剩下的计数值也为偶数，之后的每个时钟脉冲都会将计数值减2。当计数值又减为0时，OUT端又重新回到高电平，同时自动从计数初值寄存器中载入计数初值，开始又一轮循环计数。
+
+5. 方式4：软件触发选通(Software Triggered Strobe)
+
+    当处理器把控制字写入到计数器后，OUT端变成高电平。在GATE为高电平的前提下，在处理器把计数初值写入计数器后的下一个CLK时钟脉冲的下降沿，计数器开始计数，所以是软件启动。当计数值为1时，OUT端由高电平变为低电平，当计数值为0，即持续一个CLK时钟周期后，OUT端又回到高电平，此时计数器停止计数。
+
+![](./images/8253%E5%B7%A5%E4%BD%9C%E6%A8%A1%E5%BC%8F%E6%80%BB%E7%BB%93.png)
+
+### 编写中断处理程序
+
+#### 中断处理框架的流程
+详细步骤如下：
+1. 定义好中断处理程序
+2. 定义好中断描述符的数据结构（IDT）
+3. 然后初始化描述符，也就是创建一个中断描述符的数组，将中断处理程序和中断描述符对应
+4. 根据8259A的可编程规则初始化可编程中断控制器8259A
+5. 根据8253编程计数器/定时器
+6. 通过lidt指令加载idt
+
+#### 代码
+此处将现阶段的所有代码列出来
+```text
+code
+  |---boot
+  |     |---mbr.S [主引导程序]
+  |     |---loader.S [loader程序]
+  |     |---include
+  |     |       |---boot.inc [系统的配置]
+  |---lib
+  |     |---stdint.h []
+  |     |---kernel
+  |     |       |---print.S [打印函数汇编程序]
+  |     |       |---print.h [打印函数头文件]
+  |     |       |---io.h [有关端口操作的头文件兼实现]
+  |---kernel
+  |     |---main.c [程序入口]
+  |     |---global.h [全局宏定义头文件]
+  |     |---init.h [初始化程序头文件]
+  |     |---init.c [初始化程序]
+  |     |---interrupt.h [中断相关头文件]
+  |     |---interrupt.c [中断相关C程序]
+  |     |---kernel.S [内核汇编程序]
+  |---device
+  |     |---timer.c [时钟]
+  |     |---timer.h [时钟头文件]
+```
+##### MBR引导程序
+```asm
+;主引导程序 
+;------------------------------------------------------------
+%include "boot.inc"
+SECTION MBR vstart=0x7c00         
+   mov ax,cs      
+   mov ds,ax
+   mov es,ax
+   mov ss,ax
+   mov fs,ax
+   mov sp,0x7c00
+   mov ax,0xb800
+   mov gs,ax
+
+; 清屏
+;利用0x06号功能，上卷全部行，则可清屏。
+; -----------------------------------------------------------
+;INT 0x10   功能号:0x06	   功能描述:上卷窗口
+;------------------------------------------------------
+;输入：
+;AH 功能号= 0x06
+;AL = 上卷的行数(如果为0,表示全部)
+;BH = 上卷行属性
+;(CL,CH) = 窗口左上角的(X,Y)位置
+;(DL,DH) = 窗口右下角的(X,Y)位置
+;无返回值：
+   mov     ax, 0600h
+   mov     bx, 0700h
+   mov     cx, 0                   ; 左上角: (0, 0)
+   mov     dx, 184fh		   ; 右下角: (80,25),
+				   ; 因为VGA文本模式中，一行只能容纳80个字符,共25行。
+				   ; 下标从0开始，所以0x18=24,0x4f=79
+   int     10h                     ; int 10h
+
+   ; 输出字符串:MBR
+   mov byte [gs:0x00],'1'
+   mov byte [gs:0x01],0xA4
+
+   mov byte [gs:0x02],' '
+   mov byte [gs:0x03],0xA4
+
+   mov byte [gs:0x04],'M'
+   mov byte [gs:0x05],0xA4	   ;A表示绿色背景闪烁，4表示前景色为红色
+
+   mov byte [gs:0x06],'B'
+   mov byte [gs:0x07],0xA4
+
+   mov byte [gs:0x08],'R'
+   mov byte [gs:0x09],0xA4
+	 
+   mov eax,LOADER_START_SECTOR	 ; 起始扇区lba地址
+   mov bx,LOADER_BASE_ADDR       ; 写入的地址
+   mov cx,4			 ; 待读入的扇区数
+   call rd_disk_m_16		 ; 以下读取程序的起始部分（一个扇区）
+  
+   jmp LOADER_BASE_ADDR + 0x300
+       
+;-------------------------------------------------------------------------------
+;功能:读取硬盘n个扇区
+rd_disk_m_16:	   
+;-------------------------------------------------------------------------------
+				       ; eax=LBA扇区号
+				       ; ebx=将数据写入的内存地址
+				       ; ecx=读入的扇区数
+      mov esi,eax	  ;备份eax
+      mov di,cx		  ;备份cx
+;读写硬盘:
+;第1步：设置要读取的扇区数
+      mov dx,0x1f2
+      mov al,cl
+      out dx,al            ;读取的扇区数
+
+      mov eax,esi	   ;恢复ax
+
+;第2步：将LBA地址存入0x1f3 ~ 0x1f6
+
+      ;LBA地址7~0位写入端口0x1f3
+      mov dx,0x1f3                       
+      out dx,al                          
+
+      ;LBA地址15~8位写入端口0x1f4
+      mov cl,8
+      shr eax,cl
+      mov dx,0x1f4
+      out dx,al
+
+      ;LBA地址23~16位写入端口0x1f5
+      shr eax,cl
+      mov dx,0x1f5
+      out dx,al
+
+      shr eax,cl
+      and al,0x0f	   ;lba第24~27位
+      or al,0xe0	   ; 设置7〜4位为1110,表示lba模式
+      mov dx,0x1f6
+      out dx,al
+
+;第3步：向0x1f7端口写入读命令，0x20 
+      mov dx,0x1f7
+      mov al,0x20                        
+      out dx,al
+
+;第4步：检测硬盘状态
+  .not_ready:
+      ;同一端口，写时表示写入命令字，读时表示读入硬盘状态
+      nop
+      in al,dx
+      and al,0x88	   ;第4位为1表示硬盘控制器已准备好数据传输，第7位为1表示硬盘忙
+      cmp al,0x08
+      jnz .not_ready	   ;若未准备好，继续等。
+
+;第5步：从0x1f0端口读数据
+      mov ax, di
+      mov dx, 256
+      mul dx
+      mov cx, ax	   ; di为要读取的扇区数，一个扇区有512字节，每次读入一个字，
+			   ; 共需di*512/2次，所以di*256
+      mov dx, 0x1f0
+  .go_on_read:
+      in ax,dx
+      mov [bx],ax
+      add bx,2		  
+      loop .go_on_read
+      ret
+
+   times 510-($-$$) db 0
+   db 0x55,0xaa
+```
+##### loader程序
+```
+   %include "boot.inc"
+   section loader vstart=LOADER_BASE_ADDR
+;构建gdt及其内部的描述符
+   GDT_BASE:   dd    0x00000000 
+	       dd    0x00000000
+
+   CODE_DESC:  dd    0x0000FFFF 
+	       dd    DESC_CODE_HIGH4
+
+   DATA_STACK_DESC:  dd    0x0000FFFF
+		     dd    DESC_DATA_HIGH4
+
+   VIDEO_DESC: dd    0x80000007	       ; limit=(0xbffff-0xb8000)/4k=0x7
+	       dd    DESC_VIDEO_HIGH4  ; 此时dpl为0
+
+   GDT_SIZE   equ   $ - GDT_BASE
+   GDT_LIMIT   equ   GDT_SIZE -	1 
+   times 60 dq 0					 ; 此处预留60个描述符的空位(slot)
+   SELECTOR_CODE equ (0x0001<<3) + TI_GDT + RPL0         ; 相当于(CODE_DESC - GDT_BASE)/8 + TI_GDT + RPL0
+   SELECTOR_DATA equ (0x0002<<3) + TI_GDT + RPL0	 ; 同上
+   SELECTOR_VIDEO equ (0x0003<<3) + TI_GDT + RPL0	 ; 同上 
+
+   ; total_mem_bytes用于保存内存容量,以字节为单位,此位置比较好记。
+   ; 当前偏移loader.bin文件头0x200字节,loader.bin的加载地址是0x900,
+   ; 故total_mem_bytes内存中的地址是0xb00.将来在内核中咱们会引用此地址
+   total_mem_bytes dd 0					 
+   ;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+
+   ;以下是定义gdt的指针，前2字节是gdt界限，后4字节是gdt起始地址
+   gdt_ptr  dw  GDT_LIMIT 
+	    dd  GDT_BASE
+
+   ;人工对齐:total_mem_bytes4字节+gdt_ptr6字节+ards_buf244字节+ards_nr2,共256字节
+   ards_buf times 244 db 0
+   ards_nr dw 0		      ;用于记录ards结构体数量
+
+   loader_start:
+   
+;-------  int 15h eax = 0000E820h ,edx = 534D4150h ('SMAP') 获取内存布局  -------
+
+   xor ebx, ebx		      ;第一次调用时，ebx值要为0
+   mov edx, 0x534d4150	      ;edx只赋值一次，循环体中不会改变
+   mov di, ards_buf	      ;ards结构缓冲区
+.e820_mem_get_loop:	      ;循环获取每个ARDS内存范围描述结构
+   mov eax, 0x0000e820	      ;执行int 0x15后,eax值变为0x534d4150,所以每次执行int前都要更新为子功能号。
+   mov ecx, 20		      ;ARDS地址范围描述符结构大小是20字节
+   int 0x15
+   jc .e820_failed_so_try_e801   ;若cf位为1则有错误发生，尝试0xe801子功能
+   add di, cx		      ;使di增加20字节指向缓冲区中新的ARDS结构位置
+   inc word [ards_nr]	      ;记录ARDS数量
+   cmp ebx, 0		      ;若ebx为0且cf不为1,这说明ards全部返回，当前已是最后一个
+   jnz .e820_mem_get_loop
+
+;在所有ards结构中，找出(base_add_low + length_low)的最大值，即内存的容量。
+   mov cx, [ards_nr]	      ;遍历每一个ARDS结构体,循环次数是ARDS的数量
+   mov ebx, ards_buf 
+   xor edx, edx		      ;edx为最大的内存容量,在此先清0
+.find_max_mem_area:	      ;无须判断type是否为1,最大的内存块一定是可被使用
+   mov eax, [ebx]	      ;base_add_low
+   add eax, [ebx+8]	      ;length_low
+   add ebx, 20		      ;指向缓冲区中下一个ARDS结构
+   cmp edx, eax		      ;冒泡排序，找出最大,edx寄存器始终是最大的内存容量
+   jge .next_ards
+   mov edx, eax		      ;edx为总内存大小
+.next_ards:
+   loop .find_max_mem_area
+   jmp .mem_get_ok
+
+;------  int 15h ax = E801h 获取内存大小,最大支持4G  ------
+; 返回后, ax cx 值一样,以KB为单位,bx dx值一样,以64KB为单位
+; 在ax和cx寄存器中为低16M,在bx和dx寄存器中为16MB到4G。
+.e820_failed_so_try_e801:
+   mov ax,0xe801
+   int 0x15
+   jc .e801_failed_so_try88   ;若当前e801方法失败,就尝试0x88方法
+
+;1 先算出低15M的内存,ax和cx中是以KB为单位的内存数量,将其转换为以byte为单位
+   mov cx,0x400	     ;cx和ax值一样,cx用做乘数
+   mul cx 
+   shl edx,16
+   and eax,0x0000FFFF
+   or edx,eax
+   add edx, 0x100000 ;ax只是15MB,故要加1MB
+   mov esi,edx	     ;先把低15MB的内存容量存入esi寄存器备份
+
+;2 再将16MB以上的内存转换为byte为单位,寄存器bx和dx中是以64KB为单位的内存数量
+   xor eax,eax
+   mov ax,bx		
+   mov ecx, 0x10000	;0x10000十进制为64KB
+   mul ecx		;32位乘法,默认的被乘数是eax,积为64位,高32位存入edx,低32位存入eax.
+   add esi,eax		;由于此方法只能测出4G以内的内存,故32位eax足够了,edx肯定为0,只加eax便可
+   mov edx,esi		;edx为总内存大小
+   jmp .mem_get_ok
+
+;-----------------  int 15h ah = 0x88 获取内存大小,只能获取64M之内  ----------
+.e801_failed_so_try88: 
+   ;int 15后，ax存入的是以kb为单位的内存容量
+   mov  ah, 0x88
+   int  0x15
+   jc .error_hlt
+   and eax,0x0000FFFF
+      
+   ;16位乘法，被乘数是ax,积为32位.积的高16位在dx中，积的低16位在ax中
+   mov cx, 0x400     ;0x400等于1024,将ax中的内存容量换为以byte为单位
+   mul cx
+   shl edx, 16	     ;把dx移到高16位
+   or edx, eax	     ;把积的低16位组合到edx,为32位的积
+   add edx,0x100000  ;0x88子功能只会返回1MB以上的内存,故实际内存大小要加上1MB
+
+.mem_get_ok:
+   mov [total_mem_bytes], edx	 ;将内存换为byte单位后存入total_mem_bytes处。
+
+
+;-----------------   准备进入保护模式   -------------------
+;1 打开A20
+;2 加载gdt
+;3 将cr0的pe位置1
+
+   ;-----------------  打开A20  ----------------
+   in al,0x92
+   or al,0000_0010B
+   out 0x92,al
+
+   ;-----------------  加载GDT  ----------------
+   lgdt [gdt_ptr]
+
+   ;-----------------  cr0第0位置1  ----------------
+   mov eax, cr0
+   or eax, 0x00000001
+   mov cr0, eax
+
+   jmp dword SELECTOR_CODE:p_mode_start	     ; 刷新流水线，避免分支预测的影响,这种cpu优化策略，最怕jmp跳转，
+					     ; 这将导致之前做的预测失效，从而起到了刷新的作用。
+.error_hlt:		      ;出错则挂起
+   hlt
+
+[bits 32]
+p_mode_start:
+   mov ax, SELECTOR_DATA
+   mov ds, ax
+   mov es, ax
+   mov ss, ax
+   mov esp,LOADER_STACK_TOP
+   mov ax, SELECTOR_VIDEO
+   mov gs, ax
+
+; -------------------------   加载kernel  ----------------------
+   mov eax, KERNEL_START_SECTOR        ; kernel.bin所在的扇区号
+   mov ebx, KERNEL_BIN_BASE_ADDR       ; 从磁盘读出后，写入到ebx指定的地址
+   mov ecx, 200			       ; 读入的扇区数
+
+   call rd_disk_m_32
+
+   ; 创建页目录及页表并初始化页内存位图
+   call setup_page
+
+   ;要将描述符表地址及偏移量写入内存gdt_ptr,一会用新地址重新加载
+   sgdt [gdt_ptr]	      ; 存储到原来gdt所有的位置
+
+   ;将gdt描述符中视频段描述符中的段基址+0xc0000000
+   mov ebx, [gdt_ptr + 2]  
+   or dword [ebx + 0x18 + 4], 0xc0000000      ;视频段是第3个段描述符,每个描述符是8字节,故0x18。
+					      ;段描述符的高4字节的最高位是段基址的31~24位
+
+   ;将gdt的基址加上0xc0000000使其成为内核所在的高地址
+   add dword [gdt_ptr + 2], 0xc0000000
+
+   add esp, 0xc0000000        ; 将栈指针同样映射到内核地址
+
+   ; 把页目录地址赋给cr3
+   mov eax, PAGE_DIR_TABLE_POS
+   mov cr3, eax
+
+   ; 打开cr0的pg位(第31位)
+   mov eax, cr0
+   or eax, 0x80000000
+   mov cr0, eax
+
+   ;在开启分页后,用gdt新的地址重新加载
+   lgdt [gdt_ptr]             ; 重新加载
+
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;  此时不刷新流水线也没问题  ;;;;;;;;;;;;;;;;;;;;;;;;
+;由于一直处在32位下,原则上不需要强制刷新,经过实际测试没有以下这两句也没问题.
+;但以防万一，还是加上啦，免得将来出来莫句奇妙的问题.
+   jmp SELECTOR_CODE:enter_kernel	  ;强制刷新流水线,更新gdt
+enter_kernel:    
+;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;;
+   call kernel_init
+   mov esp, 0xc009f000
+   jmp KERNEL_ENTRY_POINT                 ; 用地址0x1500访问测试，结果ok
+
+
+;-----------------   将kernel.bin中的segment拷贝到编译的地址   -----------
+kernel_init:
+   xor eax, eax
+   xor ebx, ebx		;ebx记录程序头表地址
+   xor ecx, ecx		;cx记录程序头表中的program header数量
+   xor edx, edx		;dx 记录program header尺寸,即e_phentsize
+
+   mov dx, [KERNEL_BIN_BASE_ADDR + 42]	  ; 偏移文件42字节处的属性是e_phentsize,表示program header大小
+   mov ebx, [KERNEL_BIN_BASE_ADDR + 28]   ; 偏移文件开始部分28字节的地方是e_phoff,表示第1 个program header在文件中的偏移量
+					  ; 其实该值是0x34,不过还是谨慎一点，这里来读取实际值
+   add ebx, KERNEL_BIN_BASE_ADDR
+   mov cx, [KERNEL_BIN_BASE_ADDR + 44]    ; 偏移文件开始部分44字节的地方是e_phnum,表示有几个program header
+.each_segment:
+   cmp byte [ebx + 0], PT_NULL		  ; 若p_type等于 PT_NULL,说明此program header未使用。
+   je .PTNULL
+
+   ;为函数memcpy压入参数,参数是从右往左依然压入.函数原型类似于 memcpy(dst,src,size)
+   push dword [ebx + 16]		  ; program header中偏移16字节的地方是p_filesz,压入函数memcpy的第三个参数:size
+   mov eax, [ebx + 4]			  ; 距程序头偏移量为4字节的位置是p_offset
+   add eax, KERNEL_BIN_BASE_ADDR	  ; 加上kernel.bin被加载到的物理地址,eax为该段的物理地址
+   push eax				  ; 压入函数memcpy的第二个参数:源地址
+   push dword [ebx + 8]			  ; 压入函数memcpy的第一个参数:目的地址,偏移程序头8字节的位置是p_vaddr，这就是目的地址
+   call mem_cpy				  ; 调用mem_cpy完成段复制
+   add esp,12				  ; 清理栈中压入的三个参数
+.PTNULL:
+   add ebx, edx				  ; edx为program header大小,即e_phentsize,在此ebx指向下一个program header 
+   loop .each_segment
+   ret
+
+;----------  逐字节拷贝 mem_cpy(dst,src,size) ------------
+;输入:栈中三个参数(dst,src,size)
+;输出:无
+;---------------------------------------------------------
+mem_cpy:		      
+   cld
+   push ebp
+   mov ebp, esp
+   push ecx		   ; rep指令用到了ecx，但ecx对于外层段的循环还有用，故先入栈备份
+   mov edi, [ebp + 8]	   ; dst
+   mov esi, [ebp + 12]	   ; src
+   mov ecx, [ebp + 16]	   ; size
+   rep movsb		   ; 逐字节拷贝
+
+   ;恢复环境
+   pop ecx		
+   pop ebp
+   ret
+
+
+;-------------   创建页目录及页表   ---------------
+setup_page:
+;先把页目录占用的空间逐字节清0
+   mov ecx, 4096
+   mov esi, 0
+.clear_page_dir:
+   mov byte [PAGE_DIR_TABLE_POS + esi], 0
+   inc esi
+   loop .clear_page_dir
+
+;开始创建页目录项(PDE)
+.create_pde:				     ; 创建Page Directory Entry
+   mov eax, PAGE_DIR_TABLE_POS
+   add eax, 0x1000 			     ; 此时eax为第一个页表的位置及属性
+   mov ebx, eax				     ; 此处为ebx赋值，是为.create_pte做准备，ebx为基址。
+
+;   下面将页目录项0和0xc00都存为第一个页表的地址，
+;   一个页表可表示4MB内存,这样0xc03fffff以下的地址和0x003fffff以下的地址都指向相同的页表，
+;   这是为将地址映射为内核地址做准备
+   or eax, PG_US_U | PG_RW_W | PG_P	     ; 页目录项的属性RW和P位为1,US为1,表示用户属性,所有特权级别都可以访问.
+   mov [PAGE_DIR_TABLE_POS + 0x0], eax       ; 第1个目录项,在页目录表中的第1个目录项写入第一个页表的位置(0x101000)及属性(3)
+   mov [PAGE_DIR_TABLE_POS + 0xc00], eax     ; 一个页表项占用4字节,0xc00表示第768个页表占用的目录项,0xc00以上的目录项用于内核空间,
+					     ; 也就是页表的0xc0000000~0xffffffff共计1G属于内核,0x0~0xbfffffff共计3G属于用户进程.
+   sub eax, 0x1000
+   mov [PAGE_DIR_TABLE_POS + 4092], eax	     ; 使最后一个目录项指向页目录表自己的地址
+
+;下面创建页表项(PTE)
+   mov ecx, 256				     ; 1M低端内存 / 每页大小4k = 256
+   mov esi, 0
+   mov edx, PG_US_U | PG_RW_W | PG_P	     ; 属性为7,US=1,RW=1,P=1
+.create_pte:				     ; 创建Page Table Entry
+   mov [ebx+esi*4],edx			     ; 此时的ebx已经在上面通过eax赋值为0x101000,也就是第一个页表的地址 
+   add edx,4096
+   inc esi
+   loop .create_pte
+
+;创建内核其它页表的PDE
+   mov eax, PAGE_DIR_TABLE_POS
+   add eax, 0x2000 		     ; 此时eax为第二个页表的位置
+   or eax, PG_US_U | PG_RW_W | PG_P  ; 页目录项的属性RW和P位为1,US为0
+   mov ebx, PAGE_DIR_TABLE_POS
+   mov ecx, 254			     ; 范围为第769~1022的所有目录项数量
+   mov esi, 769
+.create_kernel_pde:
+   mov [ebx+esi*4], eax
+   inc esi
+   add eax, 0x1000
+   loop .create_kernel_pde
+   ret
+
+
+;-------------------------------------------------------------------------------
+			   ;功能:读取硬盘n个扇区
+rd_disk_m_32:	   
+;-------------------------------------------------------------------------------
+							 ; eax=LBA扇区号
+							 ; ebx=将数据写入的内存地址
+							 ; ecx=读入的扇区数
+      mov esi,eax	   ; 备份eax
+      mov di,cx		   ; 备份扇区数到di
+;读写硬盘:
+;第1步：设置要读取的扇区数
+      mov dx,0x1f2
+      mov al,cl
+      out dx,al            ;读取的扇区数
+
+      mov eax,esi	   ;恢复ax
+
+;第2步：将LBA地址存入0x1f3 ~ 0x1f6
+
+      ;LBA地址7~0位写入端口0x1f3
+      mov dx,0x1f3                       
+      out dx,al                          
+
+      ;LBA地址15~8位写入端口0x1f4
+      mov cl,8
+      shr eax,cl
+      mov dx,0x1f4
+      out dx,al
+
+      ;LBA地址23~16位写入端口0x1f5
+      shr eax,cl
+      mov dx,0x1f5
+      out dx,al
+
+      shr eax,cl
+      and al,0x0f	   ;lba第24~27位
+      or al,0xe0	   ; 设置7～4位为1110,表示lba模式
+      mov dx,0x1f6
+      out dx,al
+
+;第3步：向0x1f7端口写入读命令，0x20 
+      mov dx,0x1f7
+      mov al,0x20                        
+      out dx,al
+
+;;;;;;; 至此,硬盘控制器便从指定的lba地址(eax)处,读出连续的cx个扇区,下面检查硬盘状态,不忙就能把这cx个扇区的数据读出来
+
+;第4步：检测硬盘状态
+  .not_ready:		   ;测试0x1f7端口(status寄存器)的的BSY位
+      ;同一端口,写时表示写入命令字,读时表示读入硬盘状态
+      nop
+      in al,dx
+      and al,0x88	   ;第4位为1表示硬盘控制器已准备好数据传输,第7位为1表示硬盘忙
+      cmp al,0x08
+      jnz .not_ready	   ;若未准备好,继续等。
+
+;第5步：从0x1f0端口读数据
+      mov ax, di	   ;以下从硬盘端口读数据用insw指令更快捷,不过尽可能多的演示命令使用,
+			   ;在此先用这种方法,在后面内容会用到insw和outsw等
+
+      mov dx, 256	   ;di为要读取的扇区数,一个扇区有512字节,每次读入一个字,共需di*512/2次,所以di*256
+      mul dx
+      mov cx, ax	   
+      mov dx, 0x1f0
+  .go_on_read:
+      in ax,dx		
+      mov [ebx], ax
+      add ebx, 2
+			  ; 由于在实模式下偏移地址为16位,所以用bx只会访问到0~FFFFh的偏移。
+			  ; loader的栈指针为0x900,bx为指向的数据输出缓冲区,且为16位，
+			  ; 超过0xffff后,bx部分会从0开始,所以当要读取的扇区数过大,待写入的地址超过bx的范围时，
+			  ; 从硬盘上读出的数据会把0x0000~0xffff的覆盖，
+			  ; 造成栈被破坏,所以ret返回时,返回地址被破坏了,已经不是之前正确的地址,
+			  ; 故程序出会错,不知道会跑到哪里去。
+			  ; 所以改为ebx代替bx指向缓冲区,这样生成的机器码前面会有0x66和0x67来反转。
+			  ; 0X66用于反转默认的操作数大小! 0X67用于反转默认的寻址方式.
+			  ; cpu处于16位模式时,会理所当然的认为操作数和寻址都是16位,处于32位模式时,
+			  ; 也会认为要执行的指令是32位.
+			  ; 当我们在其中任意模式下用了另外模式的寻址方式或操作数大小(姑且认为16位模式用16位字节操作数，
+			  ; 32位模式下用32字节的操作数)时,编译器会在指令前帮我们加上0x66或0x67，
+			  ; 临时改变当前cpu模式到另外的模式下.
+			  ; 假设当前运行在16位模式,遇到0X66时,操作数大小变为32位.
+			  ; 假设当前运行在32位模式,遇到0X66时,操作数大小变为16位.
+			  ; 假设当前运行在16位模式,遇到0X67时,寻址方式变为32位寻址
+			  ; 假设当前运行在32位模式,遇到0X67时,寻址方式变为16位寻址.
+
+      loop .go_on_read
+      ret
+```
+##### boot.inc
+```asm
+;-------------	 loader和kernel   ----------
+
+LOADER_BASE_ADDR equ 0x900 
+LOADER_STACK_TOP equ LOADER_BASE_ADDR
+LOADER_START_SECTOR equ 0x2
+
+KERNEL_BIN_BASE_ADDR equ 0x70000
+KERNEL_START_SECTOR equ 0x9
+KERNEL_ENTRY_POINT equ 0xc0001500
+
+;-------------   页表配置   ----------------
+PAGE_DIR_TABLE_POS equ 0x100000
+
+;--------------   gdt描述符属性  -----------
+DESC_G_4K   equ	  1_00000000000000000000000b   
+DESC_D_32   equ	   1_0000000000000000000000b
+DESC_L	    equ	    0_000000000000000000000b	;  64位代码标记，此处标记为0便可。
+DESC_AVL    equ	     0_00000000000000000000b	;  cpu不用此位，暂置为0  
+DESC_LIMIT_CODE2  equ 1111_0000000000000000b
+DESC_LIMIT_DATA2  equ DESC_LIMIT_CODE2
+DESC_LIMIT_VIDEO2  equ 0000_000000000000000b
+DESC_P	    equ		  1_000000000000000b
+DESC_DPL_0  equ		   00_0000000000000b
+DESC_DPL_1  equ		   01_0000000000000b
+DESC_DPL_2  equ		   10_0000000000000b
+DESC_DPL_3  equ		   11_0000000000000b
+DESC_S_CODE equ		     1_000000000000b
+DESC_S_DATA equ	  DESC_S_CODE
+DESC_S_sys  equ		     0_000000000000b
+DESC_TYPE_CODE  equ	      1000_00000000b	;x=1,c=0,r=0,a=0 代码段是可执行的,非依从的,不可读的,已访问位a清0.  
+DESC_TYPE_DATA  equ	      0010_00000000b	;x=0,e=0,w=1,a=0 数据段是不可执行的,向上扩展的,可写的,已访问位a清0.
+
+DESC_CODE_HIGH4 equ (0x00 << 24) + DESC_G_4K + DESC_D_32 + DESC_L + DESC_AVL + DESC_LIMIT_CODE2 + DESC_P + DESC_DPL_0 + DESC_S_CODE + DESC_TYPE_CODE + 0x00
+DESC_DATA_HIGH4 equ (0x00 << 24) + DESC_G_4K + DESC_D_32 + DESC_L + DESC_AVL + DESC_LIMIT_DATA2 + DESC_P + DESC_DPL_0 + DESC_S_DATA + DESC_TYPE_DATA + 0x00
+DESC_VIDEO_HIGH4 equ (0x00 << 24) + DESC_G_4K + DESC_D_32 + DESC_L + DESC_AVL + DESC_LIMIT_VIDEO2 + DESC_P + DESC_DPL_0 + DESC_S_DATA + DESC_TYPE_DATA + 0x0b
+
+;--------------   选择子属性  ---------------
+RPL0  equ   00b
+RPL1  equ   01b
+RPL2  equ   10b
+RPL3  equ   11b
+TI_GDT	 equ   000b
+TI_LDT	 equ   100b
+
+
+;----------------   页表相关属性    --------------
+PG_P  equ   1b
+PG_RW_R	 equ  00b 
+PG_RW_W	 equ  10b 
+PG_US_S	 equ  000b 
+PG_US_U	 equ  100b 
+
+
+;-------------  program type 定义   --------------
+PT_NULL equ 0
+```
+##### print.S
+```asm
+; 1. 找到对应的光标
+; 2. 获取字符
+; 3. 如果CR或者LF，调用换行的函数
+; 4. 如果BS回退的字符，调用退格的函数
 
 
 
+
+TI_GDT equ 0
+RPL0   equ 0
+
+SELECTOR_VIDEO equ (0x0003<<3) + TI_GDT + RPL0
+
+section .data
+put_int_buffer    dq    0     ; 定义8字节缓冲区用于数字到字符的转换
+
+; 32位保护模式的代码
+[bits 32]
+
+section .text
+
+;--------------------------------------------
+;put_str 通过put_char来打印以0字符结尾的字符串
+;--------------------------------------------
+;输入：栈中参数为打印的字符串
+;输出：无
+
+global put_str
+put_str:
+;由于本函数中只用到了ebx和ecx,只备份这两个寄存器
+   push ebx
+   push ecx
+   xor ecx, ecx		      ; 准备用ecx存储参数,清空
+   mov ebx, [esp + 12]	      ; 从栈中得到待打印的字符串地址 
+.goon:
+   mov cl, [ebx]
+   cmp cl, 0		      ; 如果处理到了字符串尾,跳到结束处返回
+   jz .str_over
+   push ecx		      ; 为put_char函数传递参数
+   call put_char
+   add esp, 4		      ; 回收参数所占的栈空间
+   inc ebx		      ; 使ebx指向下一个字符
+   jmp .goon
+.str_over:
+   pop ecx
+   pop ebx
+   ret
+
+
+;------------------------ put_char ---------------
+; 功能描述，把栈中的一个字节写入到光标所在位置
+;-------------------------------------------------
+
+; 通过global吧函数put_char导出位全局符号
+; 这样对外部文件便可见了，通过声明便可以调用
+global put_char
+
+put_char:
+    ; 备份32位寄存器环境
+    ; 一共8个，他们入栈的顺序是:EAX->ECX->EDX->EBX->ESP->EBP->ESI->EDI
+    pushad
+
+    ; 需要保证gs中为正确的视频段选择子
+    ; 为保险起见，每次打印时都为gs赋值
+    ; 这个与系统调用高特权级回到低特权级时gs可能被置0有关
+    mov ax, SELECTOR_VIDEO
+    mov gs, ax
+
+    ; ------- 获取光标位置 -------
+    ; 先获取高8位
+    mov dx, 0x03D4
+    mov al, 0x0e
+    out dx, al
+    mov dx, 0x03D5
+    in al, dx
+    mov ah, al
+
+    ; 再获取低8位
+    mov dx, 0x03D4
+    mov al, 0x0f
+    out dx, al
+    mov dx, 0x03D5
+    in al, dx
+
+    ; 将光标位置存入到bx中
+    mov bx, ax
+
+    ; 获取打印的字符
+    ; pushad压入4*8=32个字节，加上调用函数的4个字节返回地址
+    mov ecx, [esp + 36]
+
+    ; CR 是0x0D, LF 是 0x0A,此处回车或换行统一为回车换行
+    cmp cl, 0xd
+    jz .is_carriage_return
+    cmp cl, 0xa
+    jz .is_line_feed
+
+    ; BS(backspace)的asc码是0x8
+    cmp cl, 0x8
+    jz .is_backspace
+    jmp .put_other
+
+;;;;;;;;;;;;;;;;;
+
+.is_backspace:
+    ; backspace本质上是移动光标向前一个显存位置即可，后面输入的字符
+    ; 自然就被覆盖了，但如果不输入就显得很怪。所以此处的做法是回退一个
+    ; 显存位置后，用空字符填充覆盖掉即可
+    dec bx ; bx - 1，显存位置-1，退一个显存位置，处于前一个字符位置
+    shl bx, 1 ; bx * 2，每个字符占用两个字节，bx只是位置索引*2表示该位置的偏移量
+
+    mov byte [gs:bx], 0x20 ; 填充空字符
+    inc bx
+    mov byte [gs:bx], 0x07 ; 填充空字符的属性
+    shr bx, 1
+    jmp .set_cursor
+
+.put_other:
+    ; 打印可见字符,原理类似回退格的逻辑
+    shl bx, 1
+    mov byte [gs:bx], cl
+    inc bx
+    mov byte [gs:bx], 0x07
+    shr bx, 1
+    inc bx
+
+    cmp bx, 2000
+    jl .set_cursor
+
+.is_line_feed:
+.is_carriage_return:
+; 如果是CR或者LF，直接移动到行首
+    xor dx, dx
+    mov ax, bx
+    mov si, 80
+
+    div si ; div 16位除法，dx存储余数，ax存储商
+
+    sub bx, dx 
+
+.is_carriage_return_end:
+    add bx, 80
+    cmp bx, 2000
+.is_line_feed_end:
+    jl .set_cursor
+
+; 屏幕行数显示范围0～24，滚屏原理将屏幕的1～24行搬到0～23行
+; 再将24行用空格填充
+; 另一种可缓存的实现复杂一些，这里简单实现
+
+.roll_screen:
+    cld ; 清除方向为，在eflags寄存器中
+    mov ecx, 960 ; 2000-80=1920个字符需要搬，1920*2=3840字节需要搬
+                 ; 一次搬4个字节，3840/4=960次搬运
+    mov esi, 0xc00b80a0 ; 第一行行首地址
+    mov edi, 0xc00b8000 ; 第0行行首
+
+    rep movsd ; 开始复制960次
+
+    ; 最后一行填充空白
+    mov ebx, 3840
+    mov ecx, 80
+
+.cls:
+    mov word [gs:ebx], 0x0720 ; 0x0720 黑底白字的空格键
+    add ebx, 2
+    loop .cls ; ecx 为条件 自动减1 直到为0 退出循环
+    mov bx, 1920 ; 光标放于最后一行行首
+
+.set_cursor:
+; 将光标设为bx的值
+    ; 1. 先设置高8位
+    mov dx, 0x03D4
+    mov al, 0x0e
+    out dx, al
+
+    mov dx, 0x03D5
+    mov al, bh
+    out dx, al
+
+    ; 2. 在设置高8位
+    mov dx, 0x03D4
+    mov al, 0x0f
+    out dx, al
+
+    mov dx, 0x03D5
+    mov al, bl
+    out dx, al
+
+.put_char_done:
+    popad
+    ret
+
+
+;--------------------   将小端字节序的数字变成对应的ascii后，倒置   -----------------------
+;输入：栈中参数为待打印的数字
+;输出：在屏幕上打印16进制数字,并不会打印前缀0x,如打印10进制15时，只会直接打印f，不会是0xf
+;------------------------------------------------------------------------------------------
+global put_int
+put_int:
+   pushad
+   mov ebp, esp
+   mov eax, [ebp+4*9]              ; call的返回地址占4字节+pushad的8个4字节
+   mov edx, eax
+   mov edi, 7                          ; 指定在put_int_buffer中初始的偏移量
+   mov ecx, 8                  ; 32位数字中,16进制数字的位数是8个
+   mov ebx, put_int_buffer
+
+;将32位数字按照16进制的形式从低位到高位逐个处理,共处理8个16进制数字
+.16based_4bits:                ; 每4位二进制是16进制数字的1位,遍历每一位16进制数字
+   and edx, 0x0000000F             ; 解析16进制数字的每一位。and与操作后,edx只有低4位有效
+   cmp edx, 9                  ; 数字0～9和a~f需要分别处理成对应的字符
+   jg .is_A2F 
+   add edx, '0'                ; ascii码是8位大小。add求和操作后,edx低8位有效。
+   jmp .store
+.is_A2F:
+   sub edx, 10                 ; A~F 减去10 所得到的差,再加上字符A的ascii码,便是A~F对应的ascii码
+   add edx, 'A'
+
+;将每一位数字转换成对应的字符后,按照类似“大端”的顺序存储到缓冲区put_int_buffer
+;高位字符放在低地址,低位字符要放在高地址,这样和大端字节序类似,只不过咱们这里是字符序.
+.store:
+; 此时dl中应该是数字对应的字符的ascii码
+   mov [ebx+edi], dl               
+   dec edi
+   shr eax, 4
+   mov edx, eax 
+   loop .16based_4bits
+
+;现在put_int_buffer中已全是字符,打印之前,
+;把高位连续的字符去掉,比如把字符000123变成123
+.ready_to_print:
+   inc edi                 ; 此时edi退减为-1(0xffffffff),加1使其为0
+.skip_prefix_0:  
+   cmp edi,8                   ; 若已经比较第9个字符了，表示待打印的字符串为全0 
+   je .full0 
+;找出连续的0字符, edi做为非0的最高位字符的偏移
+.go_on_skip:   
+   mov cl, [put_int_buffer+edi]
+   inc edi
+   cmp cl, '0' 
+   je .skip_prefix_0               ; 继续判断下一位字符是否为字符0(不是数字0)
+   dec edi                 ;edi在上面的inc操作中指向了下一个字符,若当前字符不为'0',要恢复edi指向当前字符              
+   jmp .put_each_num
+
+.full0:
+   mov cl,'0'                  ; 输入的数字为全0时，则只打印0
+.put_each_num:
+   push ecx                ; 此时cl中为可打印的字符
+   call put_char
+   add esp, 4
+   inc edi                 ; 使edi指向下一个字符
+   mov cl, [put_int_buffer+edi]        ; 获取下一个字符到cl寄存器
+   cmp edi,8
+   jl .put_each_num
+   popad
+   ret
+```
+##### print.h
+```asm
+#ifndef __LIB_KERNEL_PRINT_H
+#define __LIB_KERNEL_PRINT_H
+#include "stdint.h"
+
+void put_char(uint8_t char_asci);
+void put_str(char* message);
+void put_int(uint32_t num);	 // 以16进制打印
+
+#endif
+```
+##### print.h
+```asm
+#ifndef __LIB_KERNEL_PRINT_H
+#define __LIB_KERNEL_PRINT_H
+#include "stdint.h"
+
+void put_char(uint8_t char_asci);
+void put_str(char* message);
+void put_int(uint32_t num);	 // 以16进制打印
+
+#endif
+```
+##### io.h
+```asm
+/**************	 机器模式   ***************
+	 b -- 输出寄存器QImode名称,即寄存器中的最低8位:[a-d]l。
+	 w -- 输出寄存器HImode名称,即寄存器中2个字节的部分,如[a-d]x。
+
+	 HImode
+	     “Half-Integer”模式，表示一个两字节的整数。 
+	 QImode
+	     “Quarter-Integer”模式，表示一个一字节的整数。 
+*******************************************/ 
+
+#ifndef __LIB_IO_H
+#define __LIB_IO_H
+#include "stdint.h"
+
+/* 向端口port写入一个字节*/
+static inline void outb(uint16_t port, uint8_t data) {
+/*********************************************************
+ a表示用寄存器al或ax或eax,对端口指定N表示0~255, d表示用dx存储端口号, 
+ %b0表示对应al,%w1表示对应dx */ 
+   asm volatile ( "outb %b0, %w1" : : "a" (data), "Nd" (port));    
+/******************************************************/
+}
+
+/* 将addr处起始的word_cnt个字写入端口port */
+static inline void outsw(uint16_t port, const void* addr, uint32_t word_cnt) {
+/*********************************************************
+   +表示此限制即做输入又做输出.
+   outsw是把ds:esi处的16位的内容写入port端口, 我们在设置段描述符时, 
+   已经将ds,es,ss段的选择子都设置为相同的值了,此时不用担心数据错乱。*/
+   asm volatile ("cld; rep outsw" : "+S" (addr), "+c" (word_cnt) : "d" (port));
+/******************************************************/
+}
+
+/* 将从端口port读入的一个字节返回 */
+static inline uint8_t inb(uint16_t port) {
+   uint8_t data;
+   asm volatile ("inb %w1, %b0" : "=a" (data) : "Nd" (port));
+   return data;
+}
+
+/* 将从端口port读入的word_cnt个字写入addr */
+static inline void insw(uint16_t port, void* addr, uint32_t word_cnt) {
+/******************************************************
+   insw是将从端口port处读入的16位内容写入es:edi指向的内存,
+   我们在设置段描述符时, 已经将ds,es,ss段的选择子都设置为相同的值了,
+   此时不用担心数据错乱。*/
+   asm volatile ("cld; rep insw" : "+D" (addr), "+c" (word_cnt) : "d" (port) : "memory");
+/******************************************************/
+}
+
+#endif
+```
+##### kernel.S
+```c
+[bits 32]
+
+%define ERROR_CODE nop ; 如果有异常，CPU已经自动压入错误码了，不做任何操作
+%define ZERO push 0    ; 如果没有异常，CPU没有压入错误码，需要我们补齐格式，压入一个0，保持格式统一
+
+extern put_str	;声明外部函数
+extern idt_table ;idt_table是C中注册的中断处理程序数组
+
+section .data
+intr_str db "interrupt occur!", 0xa, 0
+global intr_entry_table
+intr_entry_table:
+
+%macro VECTOR 2
+section .text
+; 每个中断处理程序都要压入中断向量号，所以每个中断类型都有一个中断处理程序
+intr%1entry:
+	%2
+	; 以下是保存上下文环境
+	push ds
+	push es
+	push fs
+	push gs
+	pushad ; pushad 压入32位寄存器，EAX,ECX,EDX,EBX,ESP,EBP,ESI,EDI
+
+	push intr_str ; 打印函数的入参
+	call put_str ; 调用打印函数
+	add esp, 4 ; 跳过打印函数的入参
+
+	; 如果是从片上进行的中断，除了忘从片上发送EOI外，还要往主片上发送EOI
+	mov al, 0x20
+	out 0xa0, al
+	out 0x20, al
+
+	; 不管idt_table中的目标程序是否需要参数，都一律压入中断向量号
+	push %1
+	; 调用idt_table中的C版本的中断处理函数
+	call [idt_table + %1*4]
+
+	jmp intr_exit
+
+section .data
+	; 存储个个中断入口程序的地址，形成intr_entry_table数组
+	; 编译器会将属性相同的section合并到一个大的segment中
+	; 所以编译之后，所有中断处理程序的地址都会乖乖的做为数组intr_entry_table的元素紧凑的排在一起
+	dd intr%1entry
+
+%endmacro
+
+section .text
+global intr_exit
+intr_exit:
+	; 跳过之前压入的中断号参数
+	add esp, 4
+	; 恢复上下文环境
+	popad
+	pop gs
+	pop fs
+	pop es
+	pop ds
+
+	add esp, 4 ; 跳过 error code，调用中断CPU会压入error code，如果没有压入，我们手动压入0，填充补齐
+	
+	; 此处直接iret即可，剩下的参数就是一些返回地址等等
+	iret
+
+
+VECTOR 0x00,ZERO
+VECTOR 0x01,ZERO
+VECTOR 0x02,ZERO
+VECTOR 0x03,ZERO
+VECTOR 0x04,ZERO
+VECTOR 0x05,ZERO
+VECTOR 0x06,ZERO
+VECTOR 0x07,ZERO 
+VECTOR 0x08,ERROR_CODE
+VECTOR 0x09,ZERO
+VECTOR 0x0a,ERROR_CODE
+VECTOR 0x0b,ERROR_CODE 
+VECTOR 0x0c,ZERO
+VECTOR 0x0d,ERROR_CODE
+VECTOR 0x0e,ERROR_CODE
+VECTOR 0x0f,ZERO 
+VECTOR 0x10,ZERO
+VECTOR 0x11,ERROR_CODE
+VECTOR 0x12,ZERO
+VECTOR 0x13,ZERO 
+VECTOR 0x14,ZERO
+VECTOR 0x15,ZERO
+VECTOR 0x16,ZERO
+VECTOR 0x17,ZERO 
+VECTOR 0x18,ERROR_CODE
+VECTOR 0x19,ZERO
+VECTOR 0x1a,ERROR_CODE
+VECTOR 0x1b,ERROR_CODE 
+VECTOR 0x1c,ZERO
+VECTOR 0x1d,ERROR_CODE
+VECTOR 0x1e,ERROR_CODE
+VECTOR 0x1f,ZERO 
+VECTOR 0x20,ZERO
+```
+##### interrupt.h
+```c
+#ifndef __KERNEL_INTERRUPT_H
+#define __KERNEL_INTERRUPT_H
+#include "stdint.h"
+typedef void* intr_handler;
+void idt_init(void);
+#endif
+```
+##### interrupt.S
+```c
+#include "interrupt.h"
+#include "stdint.h"
+#include "global.h"
+#include "io.h"
+#include "print.h"
+
+#define PIC_M_CTRL 0x20	       // 这里用的可编程中断控制器是8259A,主片的控制端口是0x20
+#define PIC_M_DATA 0x21	       // 主片的数据端口是0x21
+#define PIC_S_CTRL 0xa0	       // 从片的控制端口是0xa0
+#define PIC_S_DATA 0xa1	       // 从片的数据端口是0xa1
+
+#define IDT_DESC_CNT 0x21 //目前中共支持的中断数
+
+// 中断描述符的结构体，对应的中断门描述符
+struct gate_desc {
+	uint16_t func_offset_low_word;
+	uint16_t selector;
+	uint8_t  dcount;
+	uint8_t  attribute;
+	uint16_t func_offset_high_word;
+};
+
+// 静态函数声明
+static void make_idt_desc(struct gate_desc* p_gdesc, uint8_t attr, intr_handler function);
+static struct gate_desc idt[IDT_DESC_CNT];
+
+// 用于保存异常的名字
+char* intr_name[IDT_DESC_CNT];
+intr_handler idt_table[IDT_DESC_CNT];
+
+// 声明引用定义在Kernel.S中的中断处理函数入口数组，数组中的每一项都是一个中断处理函数的入口
+// 只是中断处理程序的入口，最终调用的是ide_table中的处理程序
+extern intr_handler intr_entry_table[IDT_DESC_CNT];
+
+// 初始化可编程中断控制器8259A
+static void pic_init(void) {
+
+   /* 初始化主片 */
+   outb (PIC_M_CTRL, 0x11);   // ICW1: 边沿触发,级联8259, 需要ICW4.
+   outb (PIC_M_DATA, 0x20);   // ICW2: 起始中断向量号为0x20,也就是IR[0-7] 为 0x20 ~ 0x27.
+   outb (PIC_M_DATA, 0x04);   // ICW3: IR2接从片. 
+   outb (PIC_M_DATA, 0x01);   // ICW4: 8086模式, 正常EOI
+
+   /* 初始化从片 */
+   outb (PIC_S_CTRL, 0x11);	// ICW1: 边沿触发,级联8259, 需要ICW4.
+   outb (PIC_S_DATA, 0x28);	// ICW2: 起始中断向量号为0x28,也就是IR[8-15] 为 0x28 ~ 0x2F.
+   outb (PIC_S_DATA, 0x02);	// ICW3: 设置从片连接到主片的IR2引脚
+   outb (PIC_S_DATA, 0x01);	// ICW4: 8086模式, 正常EOI
+
+   /* 打开主片上IR0,也就是目前只接受时钟产生的中断 */
+   outb (PIC_M_DATA, 0xfe);
+   outb (PIC_S_DATA, 0xff);
+
+   put_str("   pic_init done\n");
+}
+
+static void make_idt_desc(struct gate_desc* p_gdesc, uint8_t attr, intr_handler function) { 
+	p_gdesc->func_offset_low_word = (uint32_t) function & 0x0000ffff;
+	p_gdesc->func_offset_high_word = ((uint32_t) function & 0xffff0000) >> 16;
+	p_gdesc->dcount = 0;
+	p_gdesc->selector = SELECTOR_K_CODE;
+	p_gdesc->attribute = attr;
+}
+
+// 初始化中断描述符表
+static void idt_desc_init(void) {
+	int i;
+	for(i = 0; i < IDT_DESC_CNT; i++) {
+		make_idt_desc(&idt[i], IDT_DESC_ATTR_DPL0, intr_entry_table[i]);
+	}
+	put_str("   idt_desc_init done\n");
+}
+
+// 通用的中断处理函数，一般用于异常出现时的处理
+static void general_intr_handler(uint8_t vec_nr) {
+	if(vec_nr == 0x27 || vec_nr == 0x2f) {
+		// 因为IRQ7和IRQ15会产生伪中断，无需处理
+		// Ox2f是从片8259A上的最后一个IRQ引脚，保留项
+		return;
+	}
+	put_str("int vector : 0x");
+	put_int(vec_nr);
+	put_char('\n');
+}
+
+// 完成一般中断处理函数的注册以及异常名称的注册
+static void exception_init(void) {
+	int i;
+	for(i = 0; i<IDT_DESC_CNT; i++) {
+		// idt_table中的函数是进入中断后，根据中断向量号，找到对应的中断处理函数
+		// 这里初始化默认函数，之后会注册具体的中断处理函数
+		idt_table[i] = general_intr_handler;
+		intr_name[i] = "unknown";
+	}
+	intr_name[0] = "#DE Divide Error";
+   intr_name[1] = "#DB Debug Exception";
+   intr_name[2] = "NMI Interrupt";
+   intr_name[3] = "#BP Breakpoint Exception";
+   intr_name[4] = "#OF Overflow Exception";
+   intr_name[5] = "#BR BOUND Range Exceeded Exception";
+   intr_name[6] = "#UD Invalid Opcode Exception";
+   intr_name[7] = "#NM Device Not Available Exception";
+   intr_name[8] = "#DF Double Fault Exception";
+   intr_name[9] = "Coprocessor Segment Overrun";
+   intr_name[10] = "#TS Invalid TSS Exception";
+   intr_name[11] = "#NP Segment Not Present";
+   intr_name[12] = "#SS Stack Fault Exception";
+   intr_name[13] = "#GP General Protection Exception";
+   intr_name[14] = "#PF Page-Fault Exception";
+   // intr_name[15] 第15项是intel保留项，未使用
+   intr_name[16] = "#MF x87 FPU Floating-Point Error";
+   intr_name[17] = "#AC Alignment Check Exception";
+   intr_name[18] = "#MC Machine-Check Exception";
+   intr_name[19] = "#XF SIMD Floating-Point Exception";
+}
+
+void idt_init(){
+	put_str("idt_init start\n");
+	// idt中断描述符初始化
+	idt_desc_init();
+	// 异常名初始化并注册通用的中断处理函数
+	exception_init();
+	// 程序中断控制器初始化
+	pic_init();
+
+	// 加载idt
+	uint64_t idt_operand = ((sizeof(idt) -1) | ((uint64_t)((uint32_t)idt << 16)));
+	asm volatile("lidt %0" : : "m" (idt_operand));
+	put_str("idt_init done\n");
+}
+```
+##### init.h
+```c
+#ifndef __KERNEL_INIT_H
+#define __KERNEL_INIT_H
+void init_all(void);
+#endif
+```
+##### init.c
+```c
+#include "init.h"
+#include "print.h"
+#include "interrupt.h"
+#include "timer.h"
+
+void init_all(void) {
+	put_str("init_all\n");
+	idt_init(); // 初始化中断
+	timer_init(); // 初始化PIC
+}
+```
+##### global.h
+```c
+#ifndef __KERNEL_GLOBAL_H
+#define __KERNEL_GLOBAL_H
+#include "stdint.h"
+
+#define	 RPL0  0
+#define	 RPL1  1
+#define	 RPL2  2
+#define	 RPL3  3
+
+#define TI_GDT 0
+#define TI_LDT 1
+
+#define SELECTOR_K_CODE	   ((1 << 3) + (TI_GDT << 2) + RPL0)
+#define SELECTOR_K_DATA	   ((2 << 3) + (TI_GDT << 2) + RPL0)
+#define SELECTOR_K_STACK   SELECTOR_K_DATA 
+#define SELECTOR_K_GS	   ((3 << 3) + (TI_GDT << 2) + RPL0)
+
+//--------------   IDT描述符属性  ------------
+#define	 IDT_DESC_P	 1 
+#define	 IDT_DESC_DPL0   0
+#define	 IDT_DESC_DPL3   3
+#define	 IDT_DESC_32_TYPE     0xE   // 32位的门
+#define	 IDT_DESC_16_TYPE     0x6   // 16位的门，不用，定义它只为和32位门区分
+#define	 IDT_DESC_ATTR_DPL0  ((IDT_DESC_P << 7) + (IDT_DESC_DPL0 << 5) + IDT_DESC_32_TYPE)
+#define	 IDT_DESC_ATTR_DPL3  ((IDT_DESC_P << 7) + (IDT_DESC_DPL3 << 5) + IDT_DESC_32_TYPE)
+
+#endif
+```
+##### timer.c
+```c
+#include "timer.h"
+#include "io.h"
+#include "print.h"
+
+#define IRQ0_FREQUENCY 100 // 设置的时钟频率 100HZ，也就是IRQ0引脚上的时钟中断信号 每秒钟100次中断
+#define INPUT_FREQUENCY 1193180 // 计数器0的工作脉冲信号频率
+#define COUNTER0_VALUE INPUT_FREQUENCY / IRQ0_FREQUENCY // 计数器0的初始值
+#define COUNTER0_PORT 0x40 // 计数器0的端口号0x40
+#define COUNTER0_NO 0 // 控制字中选择计数器的号码，表示计数器0
+#define COUNTER0_MODE 2 // 计数器0的工作方式，比率发生器
+#define READ_WRITE_LATCH 3 // 读写方式，表示先读写低8位，在读写高8位
+#define PIT_CONTROL_PORT 0x43 // 控制字寄存器的端口
+
+// 把操作的计数器counter_no，读写锁属性rwl，计数器模式counter_mode写入模式控制寄存器并赋予初始值counter_value
+static void frequency_set(uint8_t counter_port, \
+							uint8_t counter_no, \
+							uint8_t rwl, \
+							uint8_t counter_mode, \
+							uint16_t counter_value) {
+	// 先写控制字
+	// 7~6 指定计数器，5～4 读写方式，3～1 工作方式，最后一位进制格式0二进制 1BCD码
+	outb(PIT_CONTROL_PORT, (uint8_t)(counter_no << 6 | rwl << 4 | counter_mode << 1));
+	// 在写counter_value值的低8位
+	outb(counter_port, (uint8_t)(counter_value));
+	// 在写counter_value值的高8位
+	outb(counter_port, (uint8_t)(counter_value >> 8));
+}
+
+void timer_init() {
+	put_str("timer_init start\n");
+	frequency_set(COUNTER0_PORT, COUNTER0_NO, READ_WRITE_LATCH, COUNTER0_MODE, COUNTER0_VALUE);
+	put_str("timer_init done\n");
+}
+```
+##### timer.h
+```c
+#ifndef __DEVICE_TIME_H
+#define __DEVICE_TIME_H
+#include "stdint.h"
+void timer_init(void);
+#endif
+```
+##### main.c
+```c
+#include "print.h"
+#include "init.h"
+
+void main(void) {
+   put_str("I am kernel\n");
+   init_all();
+   asm volatile("sti"); // 演示 临时开中断
+   while(1);
+}
+```
+##### 编译运行
+```shell
+# .S结尾的使用nasm汇编编译器编译成目标文件.o，.c结尾使用gcc编译成目标文件.o然后链接成机器码文件
+# 注意 gcc 编译需要加个参数 -m32
+# --------------- MBR
+# 将MBR程序放到硬盘的第一个扇区
+nasm -o mbr.bin mbr.S
+dd if=/root/bochs/mbr.bin of=/root/bochs/hd60M.img bs=512 count=1 conv=notrunc
+
+# --------------- loader
+nasm -I include/ -o mbr.bin mbr.asm
+dd if=/root/bochs/loader.bin of=/root/bochs/hd60M.img bs=512 count=4 seek=2 conv=notrunc
+
+# --------------- "内核"
+# 1. 将print.S编译成目标文件print.o 文件格式elf
+nasm -f elf -o build/print.o lib/kernel/print.S 
+# 2. 将kernel.S编译成目标文件kernel.o 文件格式elf
+nasm -f elf -o build/kernel.o kernel/kernel.S
+# 3. gcc编译内核程序timer.c
+gcc -m32 -I lib/kernel/ -I -I lib/ kernel/ -c -o build/timer.o device/timer.c
+# 4. gcc编译内核程序main.c
+gcc -m32 -I lib/kernel/ -I kernel/ -c -o build/main.o kernel/main.c
+# 5. gcc编译中断程序interrupt.c
+gcc -m32 -I lib/kernel/ -I lib/ -I kernel/ -c -o build/interrupt.o kernel/interrupt.c 
+# 6. gcc编译初始化程序init.c
+gcc -m32 -I lib/kernel/ -I kernel/ -I device/ -c -o build/init.o kernel/init.c
+# 7. 链接程序
+ld -m elf_i386 -Ttext 0xc0001500 -e main -o build/kernel.bin build/main.o build/init.o build/interrupt.o build/print.o build/kernel.o build/timer.o
+# 8. 最后一步就是将内核的程序写到硬盘中，第10个扇区开始写
+dd if=./build/kernel.bin of=/root/bochs/hd60M.img bs=512 count=200 seek=9 conv=notrunc
+
+# 在bochs运行
+bin/bochs -f bochsrc.disk
+```
+
+#### 调试代码
+
+调试观察中断处理过程中栈数据变化过程，全面展示一个函数的调用，中断处理过程的栈和各个寄存器的数据变化
+
+利用上面的中断处理程序演示
+```bash
+# 启动bochs
+bin/bochs -f bochsrc.disk 
+```
+如下
+```text
+[root@localhost bochs]# bin/bochs -f bochsrc.disk 
+========================================================================
+                       Bochs x86 Emulator 2.6.2
+                Built from SVN snapshot on May 26, 2013
+                  Compiled on Oct  2 2022 at 18:52:14
+========================================================================
+00000000000i[     ] reading configuration from bochsrc.disk
+------------------------------
+Bochs Configuration: Main Menu
+------------------------------
+
+This is the Bochs Configuration Interface, where you can describe the
+machine that you want to simulate.  Bochs has already searched for a
+configuration file (typically called bochsrc.txt) and loaded it if it
+could be found.  When you are satisfied with the configuration, go
+ahead and start the simulation.
+
+You can also start bochs with the -q option to skip these menus.
+
+1. Restore factory default configuration
+2. Read options from...
+3. Edit options
+4. Save options to...
+5. Restore the Bochs state from...
+6. Begin simulation
+7. Quit now
+
+Please choose one: [6] 
+00000000000i[     ] installing x module as the Bochs GUI
+00000000000i[     ] using log file bochsout.txt
+Next at t=0
+(0) [0x0000fffffff0] f000:fff0 (unk. ctxt): jmp far f000:e05b         ; ea5be000f0
+// b命令，在指定物理内存地址打断点，程序执行到指定的物理内存会停下
+<bochs:1> b 0x1500
+// c命令，没有断点会一直执行
+<bochs:2> c
+(0) Breakpoint 1, 0xc0001500 in ?? ()
+Next at t=18057772
+(0) [0x000000001500] 0008:c0001500 (unk. ctxt): push ebp                  ; 55
+// 当虚拟机发生中断的时候将中断信息打印出来
+<bochs:3> show int
+show interrupts tracing (extint/softint/iret): ON
+show mask is: softint extint iret
+// 执行多少条指令
+<bochs:4> s 70000
+00018057773: softint 0008:c0001501 (0xc0001501)
+00018057773: iret 0008:c0001501 (0xc0001501)
+Next at t=18127772
+(0) [0x00000000151b] 0008:c000151b (unk. ctxt): jmp .-2 (0xc000151b)      ; ebfe
+<bochs:5> 
+Next at t=18197772
+(0) [0x00000000151b] 0008:c000151b (unk. ctxt): jmp .-2 (0xc000151b)      ; ebfe
+<bochs:6> [回车]
+00018240478: exception (not softint) 0008:c0001ebc (0xc0001ebc)
+00018243718: iret 0008:c000151b (0xc000151b)
+Next at t=18267772
+// 我们拿到一个中断的执行指令条数，即exception前面的00018240478，表示到这条指令已经执行了18240478这么多条指令
+```
+接下来重新启动bochs
+```text
+// sba指令表示从CPU开始执行指定数据的指令条数后中断
+<bochs:1> sba 18240477
+Time breakpoint inserted. Delta = 18240477
+// 开始执行18240477条指令
+<bochs:2> c
+(0) Caught time breakpoint
+Next at t=18240477
+(0) [0x00000000151b] 0008:c000151b (unk. ctxt): jmp .-2 (0xc000151b)      ; ebfe
+// 打印栈信息
+<bochs:3> print-stack
+Stack address size 4
+ | STACK 0xc009efe0 [0xc0001ee4]
+ | STACK 0xc009efe4 [0x00000000]
+ | STACK 0xc009efe8 [0x00000000]
+ | STACK 0xc009efec [0x00000000]
+ | STACK 0xc009eff0 [0x00000000]
+ | STACK 0xc009eff4 [0x00000000]
+ | STACK 0xc009eff8 [0x00000000]
+ | STACK 0xc009effc [0x00000000]
+ | STACK 0xc009f000 [0x8ec031fa]
+ | STACK 0xc009f004 [0x10bb66d8]
+ | STACK 0xc009f008 [0x67000005]
+ | STACK 0xc009f00c [0x660b8b66]
+ | STACK 0xc009f010 [0x1274c985]
+ | STACK 0xc009f014 [0x438b6667]
+ | STACK 0xc009f018 [0x8b666704]
+ | STACK 0xc009f01c [0x300f0853]
+// 打印寄存器的信息
+<bochs:4> r
+eax: 0x40a00107 1084227847
+ecx: 0x00000000 0
+edx: 0x00000000 0
+ebx: 0x00070094 458900
+esp: 0xc009efe0 -1073090592
+ebp: 0xc009effc -1073090564
+esi: 0x00070000 458752
+edi: 0x00000000 0
+eip: 0xc000151b
+eflags 0x00000246: id vip vif ac vm rf nt IOPL=0 of df IF tf sf ZF af PF cf
+// 执行一条，也就是中断
+<bochs:5> s
+Next at t=18240478
+(0) [0x000000001ebc] 0008:c0001ebc (unk. ctxt): push ds                   ; 1e
+// 打印栈信息，可以看到，已经压入了32个字节的数据了，那么是那些数据呢？
+// 中断前的栈首地址0xc009efe0，可以看到eflags 0x00000246首先被压入栈
+// 然后就是16位CS段选择子0x0008，高位补0
+// 接着就是eip: 0xc000151b入栈
+// 最后就是错误码入栈，如果没有错误码，就是我们手动push 0
+// 所以CPU触发中断的时候，会自动压入这些信息包括错误码(如果没有就不压入，我们手动补了一个0，push 0)
+<bochs:6> print-stack
+Stack address size 4
+ | STACK 0xc009efd0 [0x00000000]
+ | STACK 0xc009efd4 [0xc000151b]
+ | STACK 0xc009efd8 [0x00000008]
+ | STACK 0xc009efdc [0x00000246]
+ | STACK 0xc009efe0 [0xc0001ee4]
+ | STACK 0xc009efe4 [0x00000000]
+ | STACK 0xc009efe8 [0x00000000]
+ | STACK 0xc009efec [0x00000000]
+ | STACK 0xc009eff0 [0x00000000]
+ | STACK 0xc009eff4 [0x00000000]
+ | STACK 0xc009eff8 [0x00000000]
+ | STACK 0xc009effc [0x00000000]
+ | STACK 0xc009f000 [0x8ec031fa]
+ | STACK 0xc009f004 [0x10bb66d8]
+ | STACK 0xc009f008 [0x67000005]
+ | STACK 0xc009f00c [0x660b8b66]
+<bochs:7> s
+Next at t=18240479
+(0) [0x000000001ebd] 0008:c0001ebd (unk. ctxt): push es                   ; 06
+<bochs:8> 
+Next at t=18240480
+(0) [0x000000001ebe] 0008:c0001ebe (unk. ctxt): push fs                   ; 0fa0
+<bochs:9> 
+Next at t=18240481
+(0) [0x000000001ec0] 0008:c0001ec0 (unk. ctxt): push gs                   ; 0fa8
+<bochs:10> 
+Next at t=18240482
+(0) [0x000000001ec2] 0008:c0001ec2 (unk. ctxt): pushad                    ; 60
+// 此时已经连续压入了ds, es, fs, gs。他们都是16位，高16位是补的内存中的垃圾数据。
+// es同ds，fs我们没做初始化所以是0
+<bochs:11> print-stack
+Stack address size 4
+ | STACK 0xc009efc0 [0xc0000018]
+ | STACK 0xc009efc4 [0x00000000]
+ | STACK 0xc009efc8 [0x00070010]
+ | STACK 0xc009efcc [0xc0000010]
+ | STACK 0xc009efd0 [0x00000000]
+ | STACK 0xc009efd4 [0xc000151b]
+ | STACK 0xc009efd8 [0x00000008]
+ | STACK 0xc009efdc [0x00000246]
+ | STACK 0xc009efe0 [0xc0001ee4]
+ | STACK 0xc009efe4 [0x00000000]
+ | STACK 0xc009efe8 [0x00000000]
+ | STACK 0xc009efec [0x00000000]
+ | STACK 0xc009eff0 [0x00000000]
+ | STACK 0xc009eff4 [0x00000000]
+ | STACK 0xc009eff8 [0x00000000]
+ | STACK 0xc009effc [0x00000000]
+<bochs:12> s
+Next at t=18240483
+(0) [0x000000001ec3] 0008:c0001ec3 (unk. ctxt): push 0xc0004008           ; 68084000c0
+// 可以看到pushad，入栈了8个32位寄存器，eax，ecx, edx, ebx, esp, ebp，esi，edi
+// 可以对比之前的值，是一摸一样的
+<bochs:13> print-stack 20
+Stack address size 4
+ | STACK 0xc009efa0 [0x00000000]
+ | STACK 0xc009efa4 [0x00070000]
+ | STACK 0xc009efa8 [0xc009effc]
+ | STACK 0xc009efac [0xc009efc0]
+ | STACK 0xc009efb0 [0x00070094]
+ | STACK 0xc009efb4 [0x00000000]
+ | STACK 0xc009efb8 [0x00000000]
+ | STACK 0xc009efbc [0x40a00107]
+ | STACK 0xc009efc0 [0xc0000018]
+ | STACK 0xc009efc4 [0x00000000]
+ | STACK 0xc009efc8 [0x00070010]
+ | STACK 0xc009efcc [0xc0000010]
+ | STACK 0xc009efd0 [0x00000000]
+ | STACK 0xc009efd4 [0xc000151b]
+ | STACK 0xc009efd8 [0x00000008]
+ | STACK 0xc009efdc [0x00000246]
+ | STACK 0xc009efe0 [0xc0001ee4]
+ | STACK 0xc009efe4 [0x00000000]
+ | STACK 0xc009efe8 [0x00000000]
+ | STACK 0xc009efec [0x00000000]
+<bochs:16> n
+Next at t=18240484
+(0) [0x000000001ec8] 0008:c0001ec8 (unk. ctxt): call .-1661 (0xc0001850)  ; e883f9ffff
+// 可以看到我们写的汇编程序了
+<bochs:17> 
+Next at t=18241393
+(0) [0x000000001ecd] 0008:c0001ecd (unk. ctxt): add esp, 0x00000004       ; 83c404
+<bochs:18> 
+Next at t=18241394
+(0) [0x000000001ed0] 0008:c0001ed0 (unk. ctxt): mov al, 0x20              ; b020
+<bochs:19> 
+Next at t=18241395
+(0) [0x000000001ed2] 0008:c0001ed2 (unk. ctxt): out 0xa0, al              ; e6a0
+<bochs:20> 
+Next at t=18241396
+(0) [0x000000001ed4] 0008:c0001ed4 (unk. ctxt): out 0x20, al              ; e620
+// 这一步中，push 0x00000020就是调用中断处理函数的入参（中断向量号）
+<bochs:21> 
+Next at t=18241397
+(0) [0x000000001ed6] 0008:c0001ed6 (unk. ctxt): push 0x00000020           ; 6a20
+<bochs:22> 
+Next at t=18241398
+(0) [0x000000001ed8] 0008:c0001ed8 (unk. ctxt): call dword ptr ds:0xc00042e0 ; ff15e04200c0
+// 可以看到栈顶就是我们压入的中断向量号
+<bochs:24> print-stack
+Stack address size 4
+ | STACK 0xc009ef9c [0x00000020]
+ | STACK 0xc009efa0 [0x00000000]
+ | STACK 0xc009efa4 [0x00070000]
+ | STACK 0xc009efa8 [0xc009effc]
+ | STACK 0xc009efac [0xc009efc0]
+ | STACK 0xc009efb0 [0x00070094]
+ | STACK 0xc009efb4 [0x00000000]
+ | STACK 0xc009efb8 [0x00000000]
+ | STACK 0xc009efbc [0x40a00107]
+ | STACK 0xc009efc0 [0xc0000018]
+ | STACK 0xc009efc4 [0x00000000]
+ | STACK 0xc009efc8 [0x00070010]
+ | STACK 0xc009efcc [0xc0000010]
+ | STACK 0xc009efd0 [0x00000000]
+ | STACK 0xc009efd4 [0xc000151b]
+ | STACK 0xc009efd8 [0x00000008]
+<bochs:25> n
+Next at t=18243709
+(0) [0x000000001ede] 0008:c0001ede (unk. ctxt): jmp .-1347 (0xc00019a0)   ; e9bdfaffff
+// call完后jmp到我们写的中断退出程序，首先跳过我们开始压入的中断向量号
+<bochs:26> 
+Next at t=18243710
+(0) [0x0000000019a0] 0008:c00019a0 (unk. ctxt): add esp, 0x00000004       ; 83c404
+// 弹出那8个32位通用寄存器
+<bochs:27> 
+Next at t=18243711
+(0) [0x0000000019a3] 0008:c00019a3 (unk. ctxt): popad                     ; 61
+// 弹出前的记录eax，ecx, edx, ebx, esp, ebp，esi，edi都恢复了
+<bochs:28> r
+eax: 0x00000020 32
+ecx: 0x00000000 0
+edx: 0x00000000 0
+ebx: 0x00070094 458900
+esp: 0xc009efa0 -1073090656
+ebp: 0xc009effc -1073090564
+esi: 0x00070000 458752
+edi: 0x00000000 0
+eip: 0xc00019a3
+eflags 0x00000096: id vip vif ac vm rf nt IOPL=0 of df if tf SF zf AF PF cf
+<bochs:29> s
+Next at t=18243712
+(0) [0x0000000019a4] 0008:c00019a4 (unk. ctxt): pop gs                    ; 0fa9
+<bochs:30> r
+eax: 0x40a00107 1084227847
+ecx: 0x00000000 0
+edx: 0x00000000 0
+ebx: 0x00070094 458900
+esp: 0xc009efc0 -1073090624
+ebp: 0xc009effc -1073090564
+esi: 0x00070000 458752
+edi: 0x00000000 0
+eip: 0xc00019a4
+eflags 0x00000096: id vip vif ac vm rf nt IOPL=0 of df if tf SF zf AF PF cf
+<bochs:31> print-stack
+Stack address size 4
+ | STACK 0xc009efc0 [0xc0000018]
+ | STACK 0xc009efc4 [0x00000000]
+ | STACK 0xc009efc8 [0x00070010]
+ | STACK 0xc009efcc [0xc0000010]
+ | STACK 0xc009efd0 [0x00000000]
+ | STACK 0xc009efd4 [0xc000151b]
+ | STACK 0xc009efd8 [0x00000008]
+ | STACK 0xc009efdc [0x00000246]
+ | STACK 0xc009efe0 [0xc0001ee4]
+ | STACK 0xc009efe4 [0x00000000]
+ | STACK 0xc009efe8 [0x00000000]
+ | STACK 0xc009efec [0x00000000]
+ | STACK 0xc009eff0 [0x00000000]
+ | STACK 0xc009eff4 [0x00000000]
+ | STACK 0xc009eff8 [0x00000000]
+ | STACK 0xc009effc [0x00000000]
+<bochs:32> s
+Next at t=18243713
+(0) [0x0000000019a6] 0008:c00019a6 (unk. ctxt): pop fs                    ; 0fa1
+<bochs:33> 
+Next at t=18243714
+(0) [0x0000000019a8] 0008:c00019a8 (unk. ctxt): pop es                    ; 07
+<bochs:34> 
+Next at t=18243715
+(0) [0x0000000019a9] 0008:c00019a9 (unk. ctxt): pop ds                    ; 1f
+<bochs:35> 
+Next at t=18243716
+(0) [0x0000000019aa] 0008:c00019aa (unk. ctxt): add esp, 0x00000004       ; 83c404
+<bochs:36> print-stack
+Stack address size 4
+ | STACK 0xc009efd0 [0x00000000]
+ | STACK 0xc009efd4 [0xc000151b]
+ | STACK 0xc009efd8 [0x00000008]
+ | STACK 0xc009efdc [0x00000246]
+ | STACK 0xc009efe0 [0xc0001ee4]
+ | STACK 0xc009efe4 [0x00000000]
+ | STACK 0xc009efe8 [0x00000000]
+ | STACK 0xc009efec [0x00000000]
+ | STACK 0xc009eff0 [0x00000000]
+ | STACK 0xc009eff4 [0x00000000]
+ | STACK 0xc009eff8 [0x00000000]
+ | STACK 0xc009effc [0x00000000]
+ | STACK 0xc009f000 [0x8ec031fa]
+ | STACK 0xc009f004 [0x10bb66d8]
+ | STACK 0xc009f008 [0x67000005]
+ | STACK 0xc009f00c [0x660b8b66]
+<bochs:37> s
+Next at t=18243717
+(0) [0x0000000019ad] 0008:c00019ad (unk. ctxt): iretd                     ; cf
+<bochs:38> print-stack
+Stack address size 4
+ | STACK 0xc009efd4 [0xc000151b]
+ | STACK 0xc009efd8 [0x00000008]
+ | STACK 0xc009efdc [0x00000246]
+ | STACK 0xc009efe0 [0xc0001ee4]
+ | STACK 0xc009efe4 [0x00000000]
+ | STACK 0xc009efe8 [0x00000000]
+ | STACK 0xc009efec [0x00000000]
+ | STACK 0xc009eff0 [0x00000000]
+ | STACK 0xc009eff4 [0x00000000]
+ | STACK 0xc009eff8 [0x00000000]
+ | STACK 0xc009effc [0x00000000]
+ | STACK 0xc009f000 [0x8ec031fa]
+ | STACK 0xc009f004 [0x10bb66d8]
+ | STACK 0xc009f008 [0x67000005]
+ | STACK 0xc009f00c [0x660b8b66]
+ | STACK 0xc009f010 [0x1274c985]
+<bochs:39> r
+eax: 0x40a00107 1084227847
+ecx: 0x00000000 0
+edx: 0x00000000 0
+ebx: 0x00070094 458900
+esp: 0xc009efd4 -1073090604
+ebp: 0xc009effc -1073090564
+esi: 0x00070000 458752
+edi: 0x00000000 0
+eip: 0xc00019ad
+eflags 0x00000086: id vip vif ac vm rf nt IOPL=0 of df if tf SF zf af PF cf
+<bochs:41> sreg
+es:0x0010, dh=0x00cf9300, dl=0x0000ffff, valid=1
+	Data segment, base=0x00000000, limit=0xffffffff, Read/Write, Accessed
+cs:0x0008, dh=0x00cf9900, dl=0x0000ffff, valid=1
+	Code segment, base=0x00000000, limit=0xffffffff, Execute-Only, Non-Conforming, Accessed, 32-bit
+ss:0x0010, dh=0x00cf9300, dl=0x0000ffff, valid=7
+	Data segment, base=0x00000000, limit=0xffffffff, Read/Write, Accessed
+ds:0x0010, dh=0x00cf9300, dl=0x0000ffff, valid=1
+	Data segment, base=0x00000000, limit=0xffffffff, Read/Write, Accessed
+fs:0x0000, dh=0x00001000, dl=0x00000000, valid=0
+gs:0x0018, dh=0xc0c0930b, dl=0x80000007, valid=1
+	Data segment, base=0xc00b8000, limit=0x00007fff, Read/Write, Accessed
+ldtr:0x0000, dh=0x00008200, dl=0x0000ffff, valid=1
+tr:0x0000, dh=0x00008b00, dl=0x0000ffff, valid=1
+gdtr:base=0xc0000900, limit=0x1f
+idtr:base=0x000040a0, limit=0x107
+// 执行iret，基本上所有的寄存器都恢复调用中断前的值，栈也恢复开始的样子了
+<bochs:42> s
+Next at t=18243718
+(0) [0x00000000151b] 0008:c000151b (unk. ctxt): jmp .-2 (0xc000151b)      ; ebfe
+<bochs:43> r
+eax: 0x40a00107 1084227847
+ecx: 0x00000000 0
+edx: 0x00000000 0
+ebx: 0x00070094 458900
+esp: 0xc009efe0 -1073090592
+ebp: 0xc009effc -1073090564
+esi: 0x00070000 458752
+edi: 0x00000000 0
+eip: 0xc000151b
+eflags 0x00000246: id vip vif ac vm rf nt IOPL=0 of df IF tf sf ZF af PF cf
+<bochs:44> print-stack
+Stack address size 4
+ | STACK 0xc009efe0 [0xc0001ee4]
+ | STACK 0xc009efe4 [0x00000000]
+ | STACK 0xc009efe8 [0x00000000]
+ | STACK 0xc009efec [0x00000000]
+ | STACK 0xc009eff0 [0x00000000]
+ | STACK 0xc009eff4 [0x00000000]
+ | STACK 0xc009eff8 [0x00000000]
+ | STACK 0xc009effc [0x00000000]
+ | STACK 0xc009f000 [0x8ec031fa]
+ | STACK 0xc009f004 [0x10bb66d8]
+ | STACK 0xc009f008 [0x67000005]
+ | STACK 0xc009f00c [0x660b8b66]
+ | STACK 0xc009f010 [0x1274c985]
+ | STACK 0xc009f014 [0x438b6667]
+ | STACK 0xc009f018 [0x8b666704]
+ | STACK 0xc009f01c [0x300f0853]
+```
 
 
 

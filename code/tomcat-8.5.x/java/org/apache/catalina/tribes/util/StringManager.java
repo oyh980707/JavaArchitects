@@ -16,6 +16,7 @@
  */
 package org.apache.catalina.tribes.util;
 
+import java.nio.charset.StandardCharsets;
 import java.text.MessageFormat;
 import java.util.Enumeration;
 import java.util.Hashtable;
@@ -125,6 +126,8 @@ public class StringManager {
             // Avoid NPE if bundle is null and treat it like an MRE
             if (bundle != null) {
                 str = bundle.getString(key);
+                byte[] bytes = str.getBytes(StandardCharsets.ISO_8859_1);
+                str = new String(bytes, StandardCharsets.UTF_8);
             }
         } catch (MissingResourceException mre) {
             //bad: shouldn't mask an exception the following way:
