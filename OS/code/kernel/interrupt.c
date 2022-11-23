@@ -4,6 +4,9 @@
 #include "io.h"
 #include "print.h"
 
+#define EFLAGS_IF 0x00000200	 // eflags寄存器中if位为1
+#define GET_EFLAGS(EFLAG_VAR) asm volatile("pushfl; popl 0x0" : "=g" (EFLAG_VAR))
+
 #define PIC_M_CTRL 0x20	       // 这里用的可编程中断控制器是8259A,主片的控制端口是0x20
 #define PIC_M_DATA 0x21	       // 主片的数据端口是0x21
 #define PIC_S_CTRL 0xa0	       // 从片的控制端口是0xa0
@@ -113,6 +116,45 @@ static void exception_init(void) {
    intr_name[18] = "#MC Machine-Check Exception";
    intr_name[19] = "#XF SIMD Floating-Point Exception";
 }
+
+/* 开中断并返回开中断前的状态 */
+enum intr_status intr_enable() {
+	enum intr_status old_status;
+	if(INTR_ON == intr_get_status()) {
+		old_status = INTR_ON;
+		return old_status;
+	} else {
+		old_status = INTR_OFF;
+		asm volatile("sti");	// 开中断
+		return old_status;
+	}
+}
+
+/* 关中断，并且返回关中断前的状态 */
+enum intr_status intr_disable() {
+	enum intr_status old_status;
+	if(INTR_ON == intr_get_status()) {
+		old_status = INTR_ON;
+		asm volatile ("cli" : : : "memory");	//关中断
+		return old_status;
+	} else {
+		old_status = INTR_OFF;
+		return old_status;
+	}
+}
+
+/* 将中断状态设置为status */
+enum intr_status intr_set_status(enum intr_status status) {
+	return (status & INTR_ON) ? intr_enable() : intr_disable();
+}
+
+/* 获取当前的中断状态 */
+enum intr_status intr_get_status() {
+	uint32_t eflags = 0;
+	GET_EFLAGS(eflags);
+	return (eflags & EFLAGS_IF) ? INTR_ON : INTR_OFF;
+}
+
 
 void idt_init(){
 	put_str("idt_init start\n");

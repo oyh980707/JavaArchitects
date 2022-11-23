@@ -248,7 +248,7 @@ public final class Bootstrap {
      * @throws Exception Fatal initialization error
      */
     public void init() throws Exception {
-
+        // 初识化类加载器，这里都初始化了URLClassLoader
         initClassLoaders();
 
         Thread.currentThread().setContextClassLoader(catalinaLoader);
@@ -441,6 +441,8 @@ public final class Bootstrap {
             if (daemon == null) {
                 // Don't set daemon until init() has completed
                 Bootstrap bootstrap = new Bootstrap();
+                // new 操作使用的是系统提供的AppClassLoader
+                log.info("Bootstrap's classLoader is : " + bootstrap.getClass().getClassLoader());
                 try {
                     bootstrap.init();
                 } catch (Throwable t) {

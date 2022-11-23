@@ -5101,14 +5101,14 @@ dd if=/root/bochs/loader.bin of=/root/bochs/hd60M.img bs=512 count=4 seek=2 conv
 nasm -f elf -o build/print.o lib/kernel/print.S 
 # 2. 将kernel.S编译成目标文件kernel.o 文件格式elf
 nasm -f elf -o build/kernel.o kernel/kernel.S
-# 3. gcc编译内核程序timer.c
-gcc -m32 -I lib/kernel/ -I -I lib/ kernel/ -c -o build/timer.o device/timer.c
+# 3. gcc编译内核程序timer.c --- -fno-builtin 不要采用内部函数
+gcc -m32 -I lib/kernel/ -I -I lib/ kernel/ -c -fno-builtin -o build/timer.o device/timer.c
 # 4. gcc编译内核程序main.c
-gcc -m32 -I lib/kernel/ -I kernel/ -c -o build/main.o kernel/main.c
+gcc -m32 -I lib/kernel/ -I kernel/ -c -fno-builtin -o build/main.o kernel/main.c
 # 5. gcc编译中断程序interrupt.c
-gcc -m32 -I lib/kernel/ -I lib/ -I kernel/ -c -o build/interrupt.o kernel/interrupt.c 
+gcc -m32 -I lib/kernel/ -I lib/ -I kernel/ -c -fno-builtin -o build/interrupt.o kernel/interrupt.c 
 # 6. gcc编译初始化程序init.c
-gcc -m32 -I lib/kernel/ -I kernel/ -I device/ -c -o build/init.o kernel/init.c
+gcc -m32 -I lib/kernel/ -I kernel/ -I device/ -c -fno-builtin -o build/init.o kernel/init.c
 # 7. 链接程序
 ld -m elf_i386 -Ttext 0xc0001500 -e main -o build/kernel.bin build/main.o build/init.o build/interrupt.o build/print.o build/kernel.o build/timer.o
 # 8. 最后一步就是将内核的程序写到硬盘中，第10个扇区开始写
