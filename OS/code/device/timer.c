@@ -1,6 +1,9 @@
 #include "timer.h"
 #include "io.h"
 #include "print.h"
+#include "thread.h"
+#include "debug.h"
+#include "interrupt.h"
 
 #define IRQ0_FREQUENCY 100 // 设置的时钟频率 100HZ，也就是IRQ0引脚上的时钟中断信号 每秒钟100次中断
 #define INPUT_FREQUENCY 1193180 // 计数器0的工作脉冲信号频率
@@ -10,6 +13,29 @@
 #define COUNTER0_MODE 2 // 计数器0的工作方式，比率发生器
 #define READ_WRITE_LATCH 3 // 读写方式，表示先读写低8位，在读写高8位
 #define PIT_CONTROL_PORT 0x43 // 控制字寄存器的端口
+
+/**
+ * ticks表示内核自中断开启以来总共的滴答数
+ */
+uint32_t ticks;
+
+static void intr_timer_handler(void) {
+    struct task_struct* cur_thread = running_thread();
+
+    // 检查是否溢出
+    ASSERT(cur_thread->stack_magic == 0xcafebabe);
+
+    // 记录时间片
+    cur_thread->elapsed_ticks++;
+    ticks++;
+
+    // 若当前线程没有时间片则发生调度，否则继续执行
+    if(cur_thread->ticks == 0) {
+        schedule();
+    } else {
+        cur_thread->ticks--;
+    }
+}
 
 // 把操作的计数器counter_no，读写锁属性rwl，计数器模式counter_mode写入模式控制寄存器并赋予初始值counter_value
 static void frequency_set(uint8_t counter_port, \
@@ -29,6 +55,8 @@ static void frequency_set(uint8_t counter_port, \
 void timer_init() {
 	put_str("timer_init start\n");
 	frequency_set(COUNTER0_PORT, COUNTER0_NO, READ_WRITE_LATCH, COUNTER0_MODE, COUNTER0_VALUE);
+    // 注册中断向量号和对应的中断处理函数
+    register_handler(0x20, intr_timer_handler);
 	put_str("timer_init done\n");
 }
 

@@ -81,9 +81,29 @@ static void general_intr_handler(uint8_t vec_nr) {
 		// Ox2f是从片8259A上的最后一个IRQ引脚，保留项
 		return;
 	}
-	put_str("int vector : 0x");
-	put_int(vec_nr);
-	put_char('\n');
+
+    // 将光标置为0，从屏幕左上角清除一片打印异常信息的区域，方便阅读
+    set_cursor(0);
+    int cursor_pos = 0;
+    while (cursor_pos < 320) {
+        put_char(' ');
+        cursor_pos++;
+    }
+
+    set_cursor(0);
+    put_str("!!!!!!!    exception message begin     !!!!!!!!!!\n");
+    set_cursor(88);
+    put_str(intr_name[vec_nr]);
+    if(vec_nr == 14) {
+        int page_fault_vaddr = 0;
+        asm ("movl %%cr2, %0" : "=r"(page_fault_vaddr));
+        put_str("\npage fault addr is "); put_int(page_fault_vaddr);
+    }
+    put_str("\n!!!!!!!    exception message end       !!!!!!!!!!\n");
+
+    // 能进入中断处理程序，就表示已经处于关中断的情况下了。
+    // 不会出现调度进程的情况。故下面的死循环不会再被中断了。
+    while(1);
 }
 
 // 完成一般中断处理函数的注册以及异常名称的注册
@@ -96,26 +116,37 @@ static void exception_init(void) {
 		intr_name[i] = "unknown";
 	}
 	intr_name[0] = "#DE Divide Error";
-   intr_name[1] = "#DB Debug Exception";
-   intr_name[2] = "NMI Interrupt";
-   intr_name[3] = "#BP Breakpoint Exception";
-   intr_name[4] = "#OF Overflow Exception";
-   intr_name[5] = "#BR BOUND Range Exceeded Exception";
-   intr_name[6] = "#UD Invalid Opcode Exception";
-   intr_name[7] = "#NM Device Not Available Exception";
-   intr_name[8] = "#DF Double Fault Exception";
-   intr_name[9] = "Coprocessor Segment Overrun";
-   intr_name[10] = "#TS Invalid TSS Exception";
-   intr_name[11] = "#NP Segment Not Present";
-   intr_name[12] = "#SS Stack Fault Exception";
-   intr_name[13] = "#GP General Protection Exception";
-   intr_name[14] = "#PF Page-Fault Exception";
-   // intr_name[15] 第15项是intel保留项，未使用
-   intr_name[16] = "#MF x87 FPU Floating-Point Error";
-   intr_name[17] = "#AC Alignment Check Exception";
-   intr_name[18] = "#MC Machine-Check Exception";
-   intr_name[19] = "#XF SIMD Floating-Point Exception";
+    intr_name[1] = "#DB Debug Exception";
+    intr_name[2] = "NMI Interrupt";
+    intr_name[3] = "#BP Breakpoint Exception";
+    intr_name[4] = "#OF Overflow Exception";
+    intr_name[5] = "#BR BOUND Range Exceeded Exception";
+    intr_name[6] = "#UD Invalid Opcode Exception";
+    intr_name[7] = "#NM Device Not Available Exception";
+    intr_name[8] = "#DF Double Fault Exception";
+    intr_name[9] = "Coprocessor Segment Overrun";
+    intr_name[10] = "#TS Invalid TSS Exception";
+    intr_name[11] = "#NP Segment Not Present";
+    intr_name[12] = "#SS Stack Fault Exception";
+    intr_name[13] = "#GP General Protection Exception";
+    intr_name[14] = "#PF Page-Fault Exception";
+    // intr_name[15] 第15项是intel保留项，未使用
+    intr_name[16] = "#MF x87 FPU Floating-Point Error";
+    intr_name[17] = "#AC Alignment Check Exception";
+    intr_name[18] = "#MC Machine-Check Exception";
+    intr_name[19] = "#XF SIMD Floating-Point Exception";
 }
+
+/**
+ * 在中断处理程序数组中的第vector_no个元素中，注册安装中断处理程序function
+ */
+void register_handler(uint8_t vector_no, intr_handler function) {
+    // idt_table 数组中的函数是在进入中断后，根据中断向量号来拿到对应的处理函数进行调用
+    idt_table[vector_no] = function;
+
+    // TODO 中断名待填入
+}
+
 
 /* 开中断并返回开中断前的状态 */
 enum intr_status intr_enable() {
