@@ -144,6 +144,45 @@ struct task_struct* thread_start(char* name, int prio, thread_func function, voi
 }
 
 /**
+ * 将当前线程阻塞
+ * @param status 需要设置为的状态
+ */
+void thread_block(enum task_status status) {
+    // status 取值为TASK_BLOCKED、TASK_WAITING、TASK_HANGING，也就是这三种状态不会被调度
+    ASSERT(status == TASK_BLOCKED || status == TASK_WAITING || status == TASK_HANGING);
+
+    // 关中断 TODO 不理解，这里关了，之后没发现有地方打开，怎么进行时钟调度? 一个线程有自己的eflags？
+    enum intr_status old_status = intr_disable();
+    // 将当前线程设置成status状态然后调度
+    struct task_struct* cur_thread = running_thread();
+    cur_thread->status = status;
+    // 将当前线程换下处理器
+    schedule();
+    // 当前线程解除后继续执行，恢复之前中断状态
+    intr_set_status(old_status);
+}
+
+/**
+ * 将阻塞的线程解除阻塞
+ * @param task 需要解除阻塞的线程
+ */
+void thread_unblok(struct task_struct* task) {
+    // 关中断
+    enum intr_status old_status = intr_disable();
+    ASSERT(task->status == TASK_BLOCKED || task->status == TASK_WAITING || task->status == TASK_HANGING);
+    if(task->status != TASK_READY) {
+        ASSERT(!elem_find(&thread_ready_list, &task->general_tag));
+        if(elem_find(&thread_ready_list, &task->general_tag)) {
+            PANIC("thread_unblock: blocked thread in read_list.\n");
+        }
+        // 放到队列前面使其尽快得到调度
+        list_push(&thread_ready_list, &task->general_tag);
+        task->status = TASK_READY;
+    }
+    intr_set_status(old_status);
+}
+
+/**
  * 实现任务调度
  */
 void schedule(void) {

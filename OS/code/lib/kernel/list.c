@@ -34,13 +34,6 @@ void list_push(struct list* plist, struct list_elem* elem) {
 }
 
 /**
- * 遍历整个队列
- */
-void list_iterate(struct list* plist) {
-
-}
-
-/**
  * 追加元素到链表队尾,类似队列的先进先出操作
  */
 void list_append(struct list* plist, struct list_elem* elem) {

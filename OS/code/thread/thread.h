@@ -104,6 +104,9 @@ struct task_struct* thread_start(char* name, int prio, thread_func function, voi
 void schedule(void);
 struct task_struct* running_thread(void);
 
+void thread_block(enum task_status status);
+void thread_unblok(struct task_struct* task);
+
 /**
  * 初始化线程环境
  */
