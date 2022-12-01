@@ -27,7 +27,7 @@ struct lock {
     // 用二元信号量实现锁
     struct semaphore semaphore;
     // 锁持有者重复申请锁的次数
-    uint32_t holer_repeat_nr;
+    uint32_t holder_repeat_nr;
 };
 
 void sema_init(struct semaphore* semaphore, uint8_t value);

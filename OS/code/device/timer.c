@@ -31,9 +31,23 @@ static void intr_timer_handler(void) {
 
     // 若当前线程没有时间片则发生调度，否则继续执行
     if(cur_thread->ticks == 0) {
+        // -------- 打印调度信息
+        put_str("\n");
+        put_str("[");
+        put_str(cur_thread->name);
+        put_str("] current Thread schedule");
+        put_int(cur_thread->ticks);
+        put_str("\n");
         schedule();
     } else {
         cur_thread->ticks--;
+        // --------- 打印信息
+        put_str("\n");
+        put_str("[");
+        put_str(cur_thread->name);
+        put_str("] current Thread ticks: ");
+        put_int(cur_thread->ticks);
+        put_str("\n");
     }
 }
 

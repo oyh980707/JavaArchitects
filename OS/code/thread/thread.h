@@ -105,7 +105,7 @@ void schedule(void);
 struct task_struct* running_thread(void);
 
 void thread_block(enum task_status status);
-void thread_unblok(struct task_struct* task);
+void thread_unblock(struct task_struct* task);
 
 /**
  * 初始化线程环境

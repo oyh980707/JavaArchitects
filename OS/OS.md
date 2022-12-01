@@ -5621,6 +5621,9 @@ Stack address size 4
 ![](./images/%E7%BA%BF%E7%A8%8B%E5%88%9B%E5%BB%BA%E5%88%87%E6%8D%A2%E8%BF%87%E7%A8%8B.jpg)
 
 
+关中断用于保证单核CPU的原子性
+自旋锁用于保证多核CPU的原子性
+
 ## 同步机制——锁
 
 

@@ -166,7 +166,7 @@ void thread_block(enum task_status status) {
  * 将阻塞的线程解除阻塞
  * @param task 需要解除阻塞的线程
  */
-void thread_unblok(struct task_struct* task) {
+void thread_unblock(struct task_struct* task) {
     // 关中断
     enum intr_status old_status = intr_disable();
     ASSERT(task->status == TASK_BLOCKED || task->status == TASK_WAITING || task->status == TASK_HANGING);
@@ -240,7 +240,7 @@ void schedule(void) {
  */
 static void make_main_thread(void) {
     main_thread = running_thread();
-    init_thread(main_thread, "main", 31);
+    init_thread(main_thread, "main", 5);
 
     // main函数是当前线程，当前线程不在thread_ready_list中，将其加入到thread_all_list中
     ASSERT(!elem_find(&thread_all_list, &main_thread->all_list_tag));
