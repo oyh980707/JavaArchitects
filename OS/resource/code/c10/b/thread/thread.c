@@ -19,7 +19,7 @@ extern void switch_to(struct task_struct* cur, struct task_struct* next);
 /* 获取当前线程pcb指针 */
 struct task_struct* running_thread() {
    uint32_t esp; 
-   asm ("mov %%esp, %0" : "=g" (esp));
+   asm ("movl %%esp, %0" : "=g" (esp));
   /* 取esp整数部分即pcb起始地址 */
    return (struct task_struct*)(esp & 0xfffff000);
 }
