@@ -5,8 +5,8 @@
 
 /* 内存池标记,用于判断用哪个内存池 */
 enum pool_flags {
-    PF_KERNEL = 1,    // 内核内存池
-    PF_USER = 2	     // 用户内存池
+   PF_KERNEL = 1,    // 内核内存池
+   PF_USER = 2	     // 用户内存池
 };
 
 #define	 PG_P_1	  1	// 页表项或页目录项存在属性位
@@ -18,8 +18,10 @@ enum pool_flags {
 
 /* 用于虚拟地址管理 */
 struct virtual_addr {
-   struct bitmap vaddr_bitmap; // 虚拟地址用到的位图结构
-   uint32_t vaddr_start;       // 虚拟地址起始地址
+/* 虚拟地址用到的位图结构，用于记录哪些虚拟地址被占用了。以页为单位。*/
+   struct bitmap vaddr_bitmap;
+/* 管理的虚拟地址 */
+   uint32_t vaddr_start;
 };
 
 extern struct pool kernel_pool, user_pool;
