@@ -4728,4 +4728,13 @@
         <welcome-file>index.jsp</welcome-file>
     </welcome-file-list>
 
+  <!--==================springmvc的前端控制器，拦截所有请求========================-->
+  <servlet>
+    <servlet-name>dispatcher</servlet-name>
+    <servlet-class>org.apache.tomcat.DefaultController</servlet-class>
+  </servlet>
+  <servlet-mapping>
+    <servlet-name>dispatcher</servlet-name>
+    <url-pattern>*.do</url-pattern>
+  </servlet-mapping>
 </web-app>

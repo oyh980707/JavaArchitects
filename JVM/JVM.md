@@ -4,23 +4,202 @@
 
 ![JVM内存模型](./image/JVM内存模型.png)
 
-名词解释
-程序计数器：程序计数器是一块较小的内存空间，它标记程序执行的位置，可以通过改变程序计数器来依次执行程序中的指令。
-它的作用有两个，一个是可以改变程序计数器来依次执行程序中的指令代码，二是进行上下文切换时，程序计数器记录当前执行位置，当线程切换回来时知道从哪个位置开始执行
+### 程序计数器
+
+程序计数器是一块较小的内存空间，它标记程序执行的位置，可以通过改变程序计数器来依次执行字节码中的指令。
+它的作用有两个，一个是可以改变程序计数器来依次执行字节码指令，二是进行上下文切换时，程序计数器记录当前执行位置，当线程切换回来时知道从哪个位置开始执行
 程序计数器是唯一一个不会出现 OutOfMemoryError 的内存区域
 
-Java 虚拟机栈：Java 虚拟机栈是由一个个栈帧组成，而每个栈帧中都拥有局部变量表、操作数栈等数据。每次方法调用的数据都是通过栈传递的。每一次函数调用都会有一个对应的栈帧被压入 Java 栈，每一个函数调用结束后，都会有一个栈帧被弹出。Java 虚拟机栈也是线程私有的。
-Java 虚拟机栈会出现两种错误: StackOverFlowError 和 OutOfMemoryError 。
+### Java 虚拟机栈
 
-本地方法栈：本地方法栈则为虚拟机使用到的 Native 方法服务，于Java 虚拟机栈类似，Java 虚拟机栈支持的事Java 方法的运行，而本地方法栈则是支持 Native 方法的运行。
+Java 虚拟机栈是由一个个栈帧组成，而每个栈帧中都拥有局部变量表、操作数栈等数据。每次方法调用的数据都是通过栈传递的。每一次函数调用都会有一个对应的栈帧被压入Java栈，每一个函数调用结束后，都会有一个栈帧被弹出。Java 虚拟机栈也是线程私有的。
 
-Java 堆：Java 堆是所有线程共享的一块内存区域，在虚拟机启动时创建。此内存区域的唯一目的就是存放对象实例，几乎所有的对象实例以及数组都在这里分配内存。
+Java 虚拟机栈会出现两种错误: StackOverFlowError(栈深度大于所允许的深度) 和 OutOfMemoryError(栈扩展到无法申请内存)。
+
+### 本地方法栈
+
+本地方法栈则为虚拟机使用到的Native方法服务，于Java虚拟机栈类似，Java虚拟机栈支持的事Java方法的运行，而本地方法栈则是支持Native方法的运行。
+
+与Java虚拟机栈类似会出现两种错误: StackOverFlowError(栈深度大于所允许的深度) 和 OutOfMemoryError(栈扩展到无法申请内存)。
+
+### Java 堆
+
+Java堆是所有线程共享的一块内存区域，在虚拟机启动时创建。此内存区域的唯一目的就是存放对象实例，几乎所有的对象实例以及数组都在这里分配内存。
 堆可细分为：新生代(Eden区、From Survivor、To Survivor)，老年代，永久代(JDK1.8 移除 转而被元空间取代)
 
-方法区：各个线程共享的内存区域，它用于存储已被虚拟机加载的类信息、常 量、静态变量、即时编译器编译后的代码等数据。JDK 1.8 的时候，方法区(HotSpot 的永久代)被彻底移除了，取而代之是元空间，元空间使用的是直接内存。
-注：永久代是 HotSpot 的概念，方法区是 Java 虚拟机规范中的定义，是一种规范，而永久代是一种实现
+当Java堆无法再扩展时，会抛出OutOfMemoryError
 
-运行时常量池：运行时常量池是方法区的一部分。Class 文件中除了有类的版本、字段、方法、接口等描述信息外，还有常量池表(用于存放编译期生成的各种字面量和符号引用)
+### 方法区
+
+各个线程共享的内存区域，它用于存储已被虚拟机加载的类信息、常量、静态变量、即时编译器编译后的代码等数据。JDK 1.8 的时候，方法区(HotSpot 的永久代)被彻底移除了，取而代之是元空间，元空间使用的是直接内存。如果方法去无法满足新的内存分配需求时将抛出OutOfMemoryError。
+注：永久代是HotSpot的概念，方法区是Java虚拟机规范中的定义，是一种规范，而永久代是一种实现
+
+### 运行时常量池
+
+运行时常量池是方法区的一部分。Class 文件中除了有类的版本、字段、方法、接口等描述信息外，还有常量池表(用于存放编译期生成的各种字面量和符号引用)。
+
+运行时常量池相对于Class文件常量池的区别是运行时常量池具备动态性，Jva语言并不要求常量一定只有编译器才能产生，运行期间也可以将新的常量放入到运行时常量池中，例如String类的intern()方法。
+
+### 直接内存
+
+直接内存并不是虚拟机运行时数据区的一部分，也不是java虚拟机规范中定义的内存区域。直接内存的分配不会受到Java堆大小的限制，会受到本机物理等内存的限制。这部分内存也被频繁用着，例如NIO(New Input/Output)，使用Native函数库直接分配对外内存，然后通过存储在Java堆里的DirectByteBuffer对象作为这块内存的引用进行操作。他也会产生OutOfMemoryError异常。
+
+
+
+## 对象的访问和定位
+
+在《Java虚拟机规范》里边之规定了通过引用来访问对象，并没有规定通过什么方式、访问堆中的什么位置。所以目前主流的访问方式有两种
+
+- 句柄访问
+
+如果使用句柄访问，Java堆中将可能会开辟一块内存来作为句柄池，栈中引用就是存储这里面句柄的地址，而句柄中包含了对象实例数据与类型类型数据各自具体的地址信息
+
+- 直接指针访问
+
+栈上的引用的值就是Java堆中的直接对象的地址，直接可以访问到。
+
+![]()
+
+
+
+
+---
+在Hotspot源码中oops/markOop.hpp里面描述了Mark Word结构
+
+```cpp
+// Bit-format of an object header (most significant first, big endian layout below):
+//
+//  32 bits:
+//  --------
+//             hash:25 ------------>| age:4    biased_lock:1 lock:2 (normal object)
+//             JavaThread*:23 epoch:2 age:4    biased_lock:1 lock:2 (biased object)
+//             size:32 ------------------------------------------>| (CMS free block)
+//             PromotedObject*:29 ---------->| promo_bits:3 ----->| (CMS promoted object)
+//
+//  64 bits:
+//  --------
+//  unused:25 hash:31 -->| unused:1   age:4    biased_lock:1 lock:2 (normal object)
+//  JavaThread*:54 epoch:2 unused:1   age:4    biased_lock:1 lock:2 (biased object)
+//  PromotedObject*:61 --------------------->| promo_bits:3 ----->| (CMS promoted object)
+//  size:64 ----------------------------------------------------->| (CMS free block)
+//
+//  unused:25 hash:31 -->| cms_free:1 age:4    biased_lock:1 lock:2 (COOPs && normal object)
+//  JavaThread*:54 epoch:2 cms_free:1 age:4    biased_lock:1 lock:2 (COOPs && biased object)
+//  narrowOop:32 unused:24 cms_free:1 unused:4 promo_bits:3 ----->| (COOPs && CMS promoted object)
+//  unused:21 size:35 -->| cms_free:1 unused:7 ------------------>| (COOPs && CMS free block)
+```
+
+
+## Java 的各种实验
+
+### 堆 HeapOOM
+
+```java
+/**
+ * VM Args：-Xms20m -Xmx20m -XX:+HeapDumpOnOutOfMemoryError
+ */
+public class HeapOOM {
+    static class OOMObject {
+    }
+    public static void main(String[] args) {
+        List<OOMObject> list = new ArrayList<OOMObject>();
+        while (true) {
+            list.add(new OOMObject());
+        }
+    }
+}
+```
+
+```text
+java.lang.OutOfMemoryError: Java heap space
+Dumping heap to java_pid85249.hprof ...
+Heap dump file created [27782054 bytes in 0.142 secs]
+Exception in thread "main" java.lang.OutOfMemoryError: Java heap space
+```
+
+分析过程，首先出现这种内存溢出情况常规的处理方法就是将内存堆转存快照，通过参数"-XX:+HeapDumpOnOutOfMemoryError"，然后通过内存映像分析工具，例如Idea中的profiler对Dump出来的堆转储快照进行分析。先确认出现的是内存泄漏(Memory Leak)还是内存溢出(Memory Overflow)
+如果是内存泄漏，可以通过工具查看泄漏对象到GCRoots的引用链，找到泄漏对象是通过怎样的引用路径、与哪些GCRoots相关联才导致垃圾回收器无法回收他们。可以跟踪到其创建位置。
+如果是内存溢出，也就是对象都需要存活，那就应该检查Java虚拟机的启动参数设置，与机器的内存对比，看是否有向上调整的可能
+
+### 虚拟机栈和本地方法栈 SOF
+
+Java虚拟机规范中描述了两种栈和本地方法栈的异常：
+1. 如果线程请求的栈深度大于虚拟机所允许的最大深度，将抛出StackOverflowError异常
+2. 如果虚拟机的栈内存允许动态扩展，当扩展容量无法申请到足够的内存时，将抛出OutOfMemoryError异常。
+
+在Hotspot虚拟机实现中，是不允许支持栈扩展的，因为规范中允许不支持扩展。那么当虚拟机启动时无法获得足够的内存导致OOM会动态扩展，但不会因为运行时因为栈内存不足而动态扩展。所以当程序运行时只会因为栈容量无法扩展，栈容量无法容纳新的栈帧导致OOM。
+
+```java
+public class JavaVMStackSOF {
+    private int stackLength = 1;
+    public void stackLeak() {
+        stackLength++;
+        stackLeak();
+    }
+    public static void main(String[] args) {
+        JavaVMStackSOF_1 oom = new JavaVMStackSOF_1();
+        try {
+            oom.stackLeak();
+        } catch (Throwable e) {
+            System.out.println("stack length:" + oom.stackLength);
+            throw e;
+        }
+    }
+}
+```
+但我们给定虚拟机参数"-Xss128k"时，
+
+```text
+...
+The stack size specified is too small, Specify at least 160k
+```
+根据机器的不同，栈容量的最小值也会不同。我这里至少需要设置栈大小为160K才能运行该程序。
+只需要将"-Xss"适当调大即可运行，其次就是如果在方法中定义很多局部变量，那么栈的深度自然就越小，很容易理解，当给定栈的容量，当每个栈帧所占的空间越大，那么分配的栈帧就越少。这是单线程的运行用例
+如果是多线程运行，无限循环创建线程的话，肯定会导致虚拟机内存溢出。那么这种内存溢出异常和栈空间不足没有任何的直接关系，这主要取决于操作系统本身的内存情况，多线程情况下，为每个线程分配栈的空间越大，那么就越容易产生内存溢出。也就是说为每个线程分配的栈内存越大，可建立的线程数量自然越小。
+
+当我给虚拟机参数设置为"-Xss2G"时，就出现一下的错误
+```text
+Error occurred during initialization of VM
+java.lang.OutOfMemoryError: unable to create new native thread
+...
+```
+
+### 方法区和运行时常量池的溢出
+
+在JDK7以前，我们说JDK6时代，常量池是分配在永久代的，可以通过 "-XX:PermSize=1M -XX:MaxPermSize=1M"来限制永久代的大小，可以间接的限制其中的常量池大小。而在JDK以及更高的版本中，常量池已经从方法区移出放到Java堆中去了。JDK8已经将永久代废除掉了，改为元空间，放到了直接内存中去了，但常量池放到了堆中。
+
+```java
+public class RuntimeConstantPoolOOM_2 {
+    public static void main(String[] args) {
+        String str1 = new StringBuilder("计算机").append("软件").toString();
+        System.out.println(str1.intern() == str1);
+
+        String str2 = new StringBuilder("ja").append("va").toString();
+        System.out.println(str2.intern() == str2);
+    }
+}
+```
+JDK8的运行结果
+```text
+true
+false
+```
+
+String.intern()方法的作用是一种手动将字符串加入常量池中的native方法，也就是说调用该方法将字符串加入到常量池然后返回常量池中该字符串的引用，而且这个引用会保存着，即保存第一次出现的引用。
+
+这里“计算机软件”返回true是因为这个字符串第一次出现，且在堆中，然后String.intern()方法无需拷贝，因为常量池就在堆中，只需要在常量池中记录一下首次出现的实例引用即可。
+
+所以说Str1==str1
+
+对于第二个“java”返回false，是因为这个字符串在这之前出现过，所以str2.intern()返回的是之前的字符串引用，而str2指向的是当前的字符串引用，所以肯定不会相等
+
+在JDK7中还能使用参数“-XX:PermSize=10M -XX:MaxPermSize=10M”来控制永久代大小
+在JDK8中就无法控制永久代，因为JDK8中永久代已经完全退出舞台了，取而代之的是元空间。那么此时可以通过"-XX:MetaspaceSize=256M -XX:MaxMetaspaceSize=256M"设置元空间大小，不设置则视为不限制，那么它就只受本地内存大小的限制了。还有其他几个参数控制暂不列出。
+
+### 直接内存溢出
+
+直接内存
+
 
 
 ## Java 堆
@@ -738,3 +917,38 @@ S0C    S1C    S0U    S1U      EC       EU        OC         OU       MC     MU  
 
 
 不要自己使用“System.gc()”去随便触发GC，一方面可以在JVM参数中加入这 个参数:-XX:+DisableExplicitGC。这个参数的意思就是禁止显式执行GC，不允许你来通过代码触发GC。
+
+
+
+
+
+## java原生工具
+
+### 基础工具
+
+#### javac
+
+用于java编程语言的编译器
+
+> javac xxx.java
+
+#### javap
+
+java字节码分析工具，用来分析字节码文件
+
+> javap -v xxx.class
+
+#### java
+
+Java运行工具，用于运行Class文件或者jar
+
+> java Klass
+
+#### jar
+
+创建和管理JAR文件
+
+> jar -cvf Klass.jar Klass.class
+> jar -xvf Klass.jar
+
+#### 

@@ -23,7 +23,7 @@ import java.io.IOException;
  * 第一个基础过滤器，用于解决跨域，参数封装及转换，日志记录
  */
 @Component
-@Order(1)
+@Order(2)
 public class BaseFilter implements Filter {
 
     private static final Logger logger = LoggerFactory.getLogger(BaseFilter.class);
