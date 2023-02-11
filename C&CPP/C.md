@@ -9,10 +9,44 @@ C语言的编译过程
 
 以上所有过程结束后，我们就得到可以直接运行的二进制文件。在不同的操作系统上，可以通过不同的方式来运行这个程序，双击或者命令行等等。
 
+```c
+#include <stdio.h>
 
+int main(){
+    int a = 0;
+    printf("Hello Word!");
+    return 0;
+}
+```
+预处理
+```shell
+gcc -E hello.c -o hello.i
+```
+编译
+```shell
+gcc -S hello.i -o hello.s
+```
+汇编
+```shell
+gcc -c hello.s -o hello.o
+```
+链接
+```shell
+gcc hello.o -o hello
+```
 
+## C语言的运算符
 
-
+C17标准中，C语言总共有48个运算符
+```text
+算数运算符：+、-、*、/、%、++、--
+关系运算符：==、!=、>、>=、<、<=
+位运算符：&、|、^、~、<<、>>
+赋值运算符：=、+=、-+、*=、/=
+逻辑运算符：&&、||、!
+成员访问运算符：a[b]、a.b、a->b、&a、*a
+其他运算符：sizeof、?:、(type)a、a、...
+```
 
 
 
