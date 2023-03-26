@@ -1,0 +1,16 @@
+# ArrayList
+
+我们知道数据结构中两种数据存储格式，数组和链表。今天来聊聊我们Java中用的太多太多的ArrayList。
+
+ArrayList实现了List接口，间接实现了Collection接口，拥有集合和List的基本操作。他内部是一个可调整大小的数组实现的，允许元素为null，而且可以自动扩容（扩容原来的1.5倍，初始化为10）建议在创建时指定容量，除了他是线程不安全以外和Vector基本一致。当然如果要实现同步操作，可以借助Collections.synchronizedList来包装成SynchronizedList类型的集合，该类里边其实就是将所有操作通过synchronized关键字进行同步操作。ArrayList有个快速失败的策略，就是当使用迭代器遍历数组时，当数组元素发生修改时会抛出ConcurrentModificationException。
+
+
+
+
+
+
+
+
+
+
+
