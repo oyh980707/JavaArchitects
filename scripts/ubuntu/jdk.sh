@@ -5,7 +5,7 @@ echo "请给出jdk包全路径位置:"
 read jdkTargz
 echo "local jdk at $jdkTargz"
 
-installLocal=""
+installLocal="​/usr/local​/developtool"
 echo "安装目录"
 read installLocal
 echo "install jdk at $installLocal"
@@ -33,7 +33,8 @@ checkExist(){
 # 查询是否有jdk.tar.gz
 if [ -e $jdkTargz ];
 then
- if [ -e $installLocal ];then
+ if [ -e $installLocal ];
+ then
    echo "存在该文件夹，删除..."
    rm -rf $installLocal
  fi
@@ -45,7 +46,7 @@ then
  echo "正在解压jdk压缩包..."
  tar -zxvf $jdkTargz -C $installLocal
  # 检查配置信息
- checkExist 
+ checkExist
  echo "---------------------------------"
  echo "正在配置jdk环境..."
  sed -i '$a export JAVA_HOME=/opt/install/java/java8' /etc/profile
