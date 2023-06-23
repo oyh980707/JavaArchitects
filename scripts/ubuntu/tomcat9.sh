@@ -1,12 +1,13 @@
 #!/bin/bash
 
-cd /usr/local
+echo 'auto install tomcat9 begining...'
 
-wget https://mirrors.cnnic.cn/apache/tomcat/tomcat-9/v9.0.33/bin/apache-tomcat-9.0.33.tar.gz
+installDir=/opt/soft/tomcat9
 
-tar -zxvf apache-tomcat-9.0.33.tar.gz
+sudo wget -P "$installDir" https://mirrors.cnnic.cn/apache/tomcat/tomcat-9/v9.0.33/bin/apache-tomcat-9.0.33.tar.gz
 
-mv apache-tomcat-9.0.33 tomcat9
+tar -zxf "$installDir"/apache-tomcat-9.0.33.tar.gz -C "$installDir" --strip-components 1
+
 
 
 
