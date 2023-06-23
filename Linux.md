@@ -955,6 +955,8 @@ MySQL 分支为两个软件:
 
     systemctl enable mariadb.service
 
+注意这里的Mysql需要将有一个配置改一下，取消本地的127.0.0.1的地址绑定/etc/mysql/mysql.conf.d/mysqld.cnf
+
 #### MySQL 编码设置
 
 1. 检查
