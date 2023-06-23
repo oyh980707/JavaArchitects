@@ -5,7 +5,7 @@ echo 'auto install begining...'
 installDir=/opt/soft/JDK17
 
 #1. 下载
-sudo wget -P /opt/soft https://download.oracle.com/java/17/latest/jdk-17_linux-x64_bin.tar.gz
+sudo wget -P "$installDir" https://download.oracle.com/java/17/latest/jdk-17_linux-x64_bin.tar.gz
 
 setup_jdk(){
 	# 检查目录是否存在，如果不存在就创建目录
@@ -13,7 +13,7 @@ setup_jdk(){
 		mkdir -p "$installDir"
 	fi
 
-	tar -zxf jdk-17_linux-x64_bin.tar.gz -C "$installDir" --strip-components 1
+	sudo tar -zxf jdk-17_linux-x64_bin.tar.gz -C "$installDir" --strip-components 1
 
     # 配置环境变量
     if [ "$JAVA_HOME" == "" ];then
