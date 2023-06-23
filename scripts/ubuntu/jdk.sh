@@ -1,65 +1,29 @@
 #!/bin/bash
 
-jdkTargz=""
-echo "请给出jdk包全路径位置:"
-read jdkTargz
-echo "local jdk at $jdkTargz"
+echo 'auto install begining...'
 
-installLocal="​/usr/local​/developtool"
-echo "安装目录"
-read installLocal
-echo "install jdk at $installLocal"
+installDir=/opt/soft/JDK17
 
+#1. 下载
+sudo wget -P /opt/soft https://download.oracle.com/java/17/latest/jdk-17_linux-x64_bin.tar.gz
 
-# 检查原先是否已配置java环境变量
-checkExist(){
- jdk1=$(grep -n "export JAVA_HOME=.*" /etc/profile | cut -f1 -d':')
-    if [ -n "$jdk1" ];then
-        echo "JAVA_HOME已配置，删除内容"
-        sed -i "${jdk1}d" /etc/profile
+setup_jdk(){
+	# 检查目录是否存在，如果不存在就创建目录
+	if [ ! -d "$installDir" ];then
+		mkdir -p "$installDir"
+	fi
+
+	tar -zxf jdk-17_linux-x64_bin.tar.gz -C "$installDir" --strip-components 1
+
+    # 配置环境变量
+    if [ "$JAVA_HOME" == "" ];then
+        echo '#java environment' >> /etc/profile
+        echo "export JAVA_HOME=$installDir" >> /etc/profile
+        echo "export CLASSPATH=.:\${JAVA_HOME}/jre/lib/rt.jar:\${JAVA_HOME}/lib/dt.jar:\${JAVA_HOME}/lib/tools.jar" >> /etc/profile
+        echo "export PATH=\$PATH:\${JAVA_HOME}/bin" >> /etc/profile
     fi
- jdk2=$(grep -n "export CLASSPATH=.*$JAVA_HOME.*" /etc/profile | cut -f1 -d':')
-    if [ -n "$jdk2" ];then
-        echo "CLASSPATH路径已配置，删除内容"
-        sed -i "${jdk2}d" /etc/profile
-    fi
- jdk3=$(grep -n "export PATH=.*$JAVA_HOME.*" /etc/profile | cut -f1 -d':')
-    if [ -n "$jdk3" ];then
-        echo "PATH-JAVA路径已配置，删除内容"
-        sed -i "${jdk3}d" /etc/profile
-    fi
+
+    source /etc/profile
 }
 
-# 查询是否有jdk.tar.gz
-if [ -e $jdkTargz ];
-then
- if [ -e $installLocal ];
- then
-   echo "存在该文件夹，删除..."
-   rm -rf $installLocal
- fi
- echo "---------------------------------"
- echo "正在建立jdk文件路径..."
- echo "---------------------------------"
- mkdir -p $installLocal
- echo "― ― 存在jdk压缩包 ― ―"
- echo "正在解压jdk压缩包..."
- tar -zxvf $jdkTargz -C $installLocal
- # 检查配置信息
- checkExist
- echo "---------------------------------"
- echo "正在配置jdk环境..."
- sed -i '$a export JAVA_HOME=/opt/install/java/java8' /etc/profile
- sed -i '$a export CLASSPATH=.:$JAVA_HOME/jre/lib/rt.jar:$JAVA_HOME/lib/dt.jar:$JAVA_HOME/lib/tools.jar' /etc/profile
- sed -i '$a export PATH=$PATH:$JAVA_HOME/bin' /etc/profile
- echo "---------------------------------"
- echo "JAVA环境配置已完成..."
- echo "---------------------------------"
-  echo "正在重新加载配置文件..."
-  echo "---------------------------------"
-  source /etc/profile
-  echo "配置版本信息如下："
-  java -version
-else
- echo "未检测到安装包，请将安装包放到/opt目录下"
-fi
+setup_jdk
