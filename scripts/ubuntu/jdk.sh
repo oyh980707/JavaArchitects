@@ -23,7 +23,7 @@ setup_jdk(){
         echo "export PATH=\$PATH:\${JAVA_HOME}/bin" >> /etc/profile
     fi
 
-    sudo source /etc/profile
+    source /etc/profile
 }
 
 setup_jdk
