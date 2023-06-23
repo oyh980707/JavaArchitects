@@ -24,6 +24,8 @@ setup_jdk(){
     fi
 
     source /etc/profile
+
+    java -version
 }
 
 setup_jdk
