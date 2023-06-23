@@ -9,9 +9,11 @@ sudo apt install -y -q dos2unix*
 #vim
 sudo apt install -y -q vim
 
+#net
+apt install net-tools
 
-
-
+# ssh
+sudo apt-get install -y openssh-server
 
 
 

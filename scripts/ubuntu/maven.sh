@@ -9,6 +9,7 @@ sudo wget -P "$installDir" https://dlcdn.apache.org/maven/maven-3/3.9.2/binaries
 tar -zxf "$installDir"/apache-maven-3.9.2-bin.tar.gz -C "$installDir" --strip-components 1
 
 echo "export MAVEN_HOME=$installDir">>/etc/profile
+echo "export PATH=\$PATH:\${MAVEN_HOME}/bin" >> /etc/profile
 
 source /etc/profile
 
