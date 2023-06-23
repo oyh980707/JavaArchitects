@@ -13,7 +13,7 @@ setup_jdk(){
 		mkdir -p "$installDir"
 	fi
 
-	sudo tar -zxf jdk-17_linux-x64_bin.tar.gz -C "$installDir" --strip-components 1
+	sudo tar -zxf "$installDir"/jdk-17_linux-x64_bin.tar.gz -C "$installDir" --strip-components 1
 
     # 配置环境变量
     if [ "$JAVA_HOME" == "" ];then
