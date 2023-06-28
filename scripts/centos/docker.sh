@@ -146,9 +146,27 @@ docker run -id --name=c_redis -p 6379:6379 redis:5.0
 # 拉取jenkins镜像
 docker   pull   jenkins
 # 启动jenkins镜像
-docker run -d -p 10000:8080 -p 50000:50000 \
+docker run -d -p 8080:8080 -p 50000:50000 \
 -v /var/jenkins_home:/var/jenkins_home \
 -v /opt/soft/maven3:/opt/soft/maven3 \
 -v /usr/bin/git:/usr/bin/git \
+-v /home/hgr/.ssh:~/.ssh \
 --name jenkins jenkins/jenkins
 
+
+
+# 停止全部docer容器
+docker stop $(docker ps -a -q)
+
+# 删除全部docer容器
+docker rm $(docker ps -a -q)
+
+# 删除全部docer镜像
+docker rmi $(docker images -q)
+
+
+
+
+# 服务杀不死怎么办
+/etc/init.d/redis-server stop
+sudo /etc/init.d/mysql stop
