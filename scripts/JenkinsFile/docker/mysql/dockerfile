@@ -4,4 +4,5 @@ FROM mysql:5.7
 MAINTAINER ms
 
 # 执行sql脚本
-# ADD ./db/*.sql /docker-entrypoint-initdb.d/
+RUN chmod -R 775 /docker-entrypoint-initdb.d
+ADD ./db/*.sql /docker-entrypoint-initdb.d/
