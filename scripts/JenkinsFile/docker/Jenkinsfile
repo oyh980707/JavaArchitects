@@ -17,7 +17,7 @@ pipeline {
                     $class: 'GitSCM',
                     branches: [[name: "${params.branch}"]],
                     doGenerateSubmoduleConfigurations: false,
-                    extensions: [],
+                    extensions: [cloneOption(depth: 1, noTags: false, reference: '', shallow: true, timeout: 20)],
                     submoduleCfg: [],
                     userRemoteConfigs: [[credentialsId: "${params.Credential}", url: "${params.srcUrl}"]]])
             }
