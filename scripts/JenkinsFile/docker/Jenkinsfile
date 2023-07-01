@@ -29,6 +29,7 @@ pipeline {
                     environment name: 'server_name', value: 'all'
                     environment name: 'server_name', value: 'mysql'
                 }
+            }
             steps {
                 sh "rm -rf /data/db"
                 sh "cd scripts/JenkinsFile/docker/ && docker-compose up --force-recreate --build -d ms-mysql"
