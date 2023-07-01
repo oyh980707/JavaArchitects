@@ -24,7 +24,6 @@ pipeline {
             }
         }
         stage("启动新的mysql服务") {
-            
             when { 
                 allOf {
                         environment name: 'server_name', value: 'all'
