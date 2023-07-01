@@ -26,7 +26,7 @@ services:
     volumes:
       - ./mysql/conf:/etc/mysql/conf.d
       - ./mysql/logs:/logs
-      - ./mysql/data:/var/lib/mysql
+      - /data/db:/var/lib/mysql
     command: [
           'mysqld',
           '--innodb-buffer-pool-size=80M',
