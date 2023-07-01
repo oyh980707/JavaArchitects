@@ -24,17 +24,17 @@ pipeline {
             }
         }
         stage("启动新的mysql服务") {
+            
             when { environment name: 'server_name', value: 'mysql' } 
             step{
                 script{
-                    try{
+                    //无论是否会报错，这个stage以及构建结果都不会因这个错误而失败。
+                    catchError(buildResult: 'SUCCESS', catchInterruptions: false) {
                         sh "docker stop ms-mysql && docker rm ms-mysql && docker rmi ms-mysql"
-                    } catch(Exception e){
-                        echo "停止服务失败：没有mysql服务"
                     }
+                    sh "cd scripts/JenkinsFile/docker/ && docker-compose up --build -d ms-mysql"
                 }
             }
-            sh "cd scripts/JenkinsFile/docker/ && docker-compose up --build -d ms-mysql"
         }
         stage("启动redis服务") {
             when { environment name: 'server_name', value: 'redis' } 
