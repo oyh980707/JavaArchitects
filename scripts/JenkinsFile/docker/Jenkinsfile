@@ -24,15 +24,17 @@ pipeline {
             }
         }
         stage("启动新的mysql服务") {
-            script{
-                try{
-                    sh "docker stop ms-mysql && docker rm ms-mysql && docker rmi ms-mysql"
-                } catch(Exception e){
-                    echo "停止服务失败：没有mysql服务"
-                }
-            }
             when { environment name: 'server_name', value: 'mysql' } 
             steps {
+                step{
+                    script{
+                        try{
+                            sh "docker stop ms-mysql && docker rm ms-mysql && docker rmi ms-mysql"
+                        } catch(Exception e){
+                            echo "停止服务失败：没有mysql服务"
+                        }
+                    }
+                }
                 sh "cd scripts/JenkinsFile/docker/ && docker-compose up --build -d ms-mysql"
             }
         }
