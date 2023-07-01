@@ -61,7 +61,7 @@ services:
     ports:
       - "80:80"
     volumes:
-      - ./nginx/html/dist:/home/ruoyi/projects/ruoyi-ui
+      - /usr/local/nginx/html/dist:/home/ms/projects/ms-ui
       - ./nginx/conf/nginx.conf:/etc/nginx/nginx.conf
       - ./nginx/logs:/var/log/nginx
       - ./nginx/conf.d:/etc/nginx/conf.d
