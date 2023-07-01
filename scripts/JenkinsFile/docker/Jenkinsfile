@@ -25,7 +25,7 @@ pipeline {
         }
         stage("启动新的mysql服务") {
             when { 
-                allOf {
+                anyOf {
                     environment name: 'server_name', value: 'all'
                     environment name: 'server_name', value: 'mysql'
                 }
@@ -37,7 +37,7 @@ pipeline {
         }
         stage("启动redis服务") {
             when { 
-                allOf {
+                anyOf {
                     environment name: 'server_name', value: 'all'
                     environment name: 'server_name', value: 'redis'
                 }
@@ -48,7 +48,7 @@ pipeline {
         }
         stage("启动nacos服务") {
             when { 
-                allOf {
+                anyOf {
                     environment name: 'server_name', value: 'all'
                     environment name: 'server_name', value: 'nacos'
                 }
