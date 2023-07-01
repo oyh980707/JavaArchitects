@@ -1,0 +1,32 @@
+FROM nextcloud:fpm
+ 
+RUN apt update && apt install -y aria2 libmagickcore-6.q16-6-extra cron&& apt clean
+RUN rm -rf /var/lib/apt/lists/*
+ 
+RUN mkdir -p /var/www/aria2
+WORKDIR /var/www/aria2
+RUN touch aria2.session
+RUN { \
+echo 'dir=/Downloads'; \
+echo 'enable-rpc=true'; \
+echo 'rpc-allow-origin-all=true'; \
+echo 'rpc-listen-all=true'; \
+echo 'continue=true'; \
+echo 'input-file=/var/www/aria2/aria2.session'; \
+echo 'save-session=/var/www/aria2/aria2.session'; \
+echo 'max-concurrent-downloads=20'; \
+echo 'save-session-interval=120'; \
+echo 'connect-timeout=120'; \
+echo 'max-connection-per-server=10'; \
+echo 'min-split-size=10M'; \
+echo 'split=10'; \
+echo 'check-certificate=false'; \
+} > aria2.conf; \
+chown -R www-data:root /var/www/aria2; \
+chmod -R g=u /var/www/aria2
+VOLUME ["/var/www/aria2"]
+RUN sed =i '194 i service cron start' /entrypoint.sh
+RUN sed -i '194 i su -s /bin/bash -c "aria2c --conf-path=/var/www/aria2/aria2.conf -D" www-data' /entrypoint.sh
+WORKDIR /var/www/html
+ENTRYPOINT ["/entrypoint.sh"]
+CMD ["php-fpm"]
