@@ -19,6 +19,9 @@ services:
   ms-mysql:
     container_name: ms-mysql
     image: mysql:5.7
+    # 不指定这俩参数会报错无权限
+    privileged: true
+    restart: always
     build:
       context: ./mysql
     ports:
