@@ -4,7 +4,7 @@ pipeline {
     parameters {
         gitParameter branch: '', branchFilter: '.*', defaultValue: 'master', description: '分支', name: 'branch', quickFilterEnabled: false, selectedValue: 'NONE', sortMode: 'NONE', tagFilter: '*', type: 'GitParameterDefinition'
         string defaultValue: 'git@github.com:oyh980707/JavaArchitects.git', description: 'git地址', name: 'srcUrl'
-        choice(name: '服务', choices: ['mysql', 'redis', 'nacos'], description: '中间件服务')
+        choice(name: 'server_name', choices: ['mysql', 'redis', 'nacos'], description: '中间件服务')
         credentials credentialType: 'com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey', defaultValue: '51ec1f69-74c0-4f01-87bf-8a29eb2ad814', description: '凭证', name: 'Credential', required: true
     }
 
@@ -22,11 +22,36 @@ pipeline {
                     userRemoteConfigs: [[credentialsId: "${params.Credential}", url: "${params.srcUrl}"]]])
             }
         }
-        stage('启动基础服务') {
-             steps {
-                 sh 'pwd'
-             }
-         }
+        stage("启动mysql服务") {
+            when {
+                expression {
+                    return (server_name == "mysql")
+                }
+            }
+            steps {
+                sh "cd scripts/JenkinsFile/ && docker-compose up --build -d ms-mysql"
+            }
+        }
+        stage("启动redis服务") {
+            when {
+                expression {
+                    return (server_name == "redis")
+                }
+            }
+            steps {
+                sh "cd scripts/JenkinsFile/ && docker-compose up --build -d ms-redis"
+            }
+        }
+        stage("启动nacos服务") {
+            when {
+                expression {
+                    return (server_name == "nacos")
+                }
+            }
+            steps {
+                sh "cd scripts/JenkinsFile/ && docker-compose up --build -d ms-nacos"
+            }
+        }
     }
 
 }
