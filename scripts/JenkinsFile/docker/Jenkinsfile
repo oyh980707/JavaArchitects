@@ -4,7 +4,7 @@ pipeline {
     parameters {
         gitParameter branch: '', branchFilter: '.*', defaultValue: 'master', description: '分支', name: 'branch', quickFilterEnabled: false, selectedValue: 'NONE', sortMode: 'NONE', tagFilter: '*', type: 'GitParameterDefinition'
         string defaultValue: 'git@gitee.com:oyhr/JavaArchitects.git', description: 'git地址', name: 'srcUrl'
-        choice(name: 'server_name', choices: ['mysql', 'redis', 'nacos'], description: '中间件服务')
+        choice(name: 'server_name', choices: ['all', 'mysql', 'redis', 'nacos'], description: '中间件服务')
         credentials credentialType: 'com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey', defaultValue: 'gitee_private_key', description: '凭证', name: 'Credential', required: true
     }
 
@@ -25,20 +25,37 @@ pipeline {
         }
         stage("启动新的mysql服务") {
             
-            when { environment name: 'server_name', value: 'mysql' } 
+            when { 
+                allOf {
+                        environment name: 'server_name', value: 'all'
+                        environment name: 'server_name', value: 'mysql'
+                    }
+                } 
             steps {
                 sh "rm -rf /data/db"
                 sh "cd scripts/JenkinsFile/docker/ && docker-compose up --force-recreate --build -d ms-mysql"
             }
         }
         stage("启动redis服务") {
-            when { environment name: 'server_name', value: 'redis' } 
+            when { 
+                allOf {
+                        environment name: 'server_name', value: 'all'
+                        environment name: 'server_name', value: 'redis'
+                    }
+                } 
+             } 
             steps {
                 sh "cd scripts/JenkinsFile/docker/ && docker-compose up --force-recreate --build -d ms-redis"
             }
         }
         stage("启动nacos服务") {
-            when { environment name: 'server_name', value: 'nacos' } 
+            when { 
+                allOf {
+                        environment name: 'server_name', value: 'all'
+                        environment name: 'server_name', value: 'nacos'
+                    }
+                } 
+             } 
             steps {
                 sh "cd scripts/JenkinsFile/docker/ && docker-compose up --force-recreate --build -d ms-nacos"
             }
