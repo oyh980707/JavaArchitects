@@ -27,19 +27,20 @@ pipeline {
             
             when { environment name: 'server_name', value: 'mysql' } 
             steps {
-                sh "cd scripts/JenkinsFile/docker/ && docker-compose up --build -d ms-mysql"
+                sh "rm -rf /data/db"
+                sh "cd scripts/JenkinsFile/docker/ && docker-compose up --force-recreate --build -d ms-mysql"
             }
         }
         stage("启动redis服务") {
             when { environment name: 'server_name', value: 'redis' } 
             steps {
-                sh "cd scripts/JenkinsFile/docker/ && docker-compose up --build -d ms-redis"
+                sh "cd scripts/JenkinsFile/docker/ && docker-compose up --force-recreate --build -d ms-redis"
             }
         }
         stage("启动nacos服务") {
             when { environment name: 'server_name', value: 'nacos' } 
             steps {
-                sh "cd scripts/JenkinsFile/docker/ && docker-compose up --build -d ms-nacos"
+                sh "cd scripts/JenkinsFile/docker/ && docker-compose up --force-recreate --build -d ms-nacos"
             }
         }
     }
