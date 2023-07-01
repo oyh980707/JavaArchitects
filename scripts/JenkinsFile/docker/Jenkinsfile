@@ -23,31 +23,19 @@ pipeline {
             }
         }
         stage("启动mysql服务") {
-            when {
-                expression {
-                    return (server_name == "mysql")
-                }
-            }
+            when { environment name: 'server_name', value: 'mysql' } 
             steps {
                 sh "cd scripts/JenkinsFile/ && docker-compose up --build -d ms-mysql"
             }
         }
         stage("启动redis服务") {
-            when {
-                expression {
-                    return (server_name == "redis")
-                }
-            }
+            when { environment name: 'server_name', value: 'redis' } 
             steps {
                 sh "cd scripts/JenkinsFile/ && docker-compose up --build -d ms-redis"
             }
         }
         stage("启动nacos服务") {
-            when {
-                expression {
-                    return (server_name == "nacos")
-                }
-            }
+            when { environment name: 'server_name', value: 'nacos' } 
             steps {
                 sh "cd scripts/JenkinsFile/ && docker-compose up --build -d ms-nacos"
             }
