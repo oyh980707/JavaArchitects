@@ -4,7 +4,7 @@ pipeline {
     parameters {
         gitParameter branch: '', branchFilter: '.*', defaultValue: 'master', description: '分支', name: 'branch', quickFilterEnabled: false, selectedValue: 'NONE', sortMode: 'NONE', tagFilter: '*', type: 'GitParameterDefinition'
         string defaultValue: 'git@gitee.com:oyhr/JavaArchitects.git', description: 'git地址', name: 'srcUrl'
-        choice(name: 'server_name', choices: ['all', 'mysql', 'redis', 'nacos'], description: '中间件服务')
+        choice(name: 'server_name', choices: ['all', 'mysql', 'redis', 'nacos', 'nginx'], description: '中间件服务')
         credentials credentialType: 'com.cloudbees.jenkins.plugins.sshcredentials.impl.BasicSSHUserPrivateKey', defaultValue: 'gitee_private_key', description: '凭证', name: 'Credential', required: true
     }
 
@@ -55,6 +55,17 @@ pipeline {
              } 
             steps {
                 sh "cd scripts/JenkinsFile/docker/ && docker-compose up --force-recreate --build -d ms-nacos"
+            }
+        }
+        stage("启动nginx服务") {
+            when { 
+                anyOf {
+                    environment name: 'server_name', value: 'all'
+                    environment name: 'server_name', value: 'nginx'
+                }
+             } 
+            steps {
+                sh "cd scripts/JenkinsFile/docker/ && docker-compose up --force-recreate --build -d ms-nginx"
             }
         }
     }
