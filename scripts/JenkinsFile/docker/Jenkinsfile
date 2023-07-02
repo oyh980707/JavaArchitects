@@ -68,6 +68,11 @@ pipeline {
                 sh "cd scripts/JenkinsFile/docker/ && docker-compose up --force-recreate --build -d ms-nginx"
             }
         }
+        stage("清理容器") {
+            steps {
+                sh "docker rmi $(docker images -f \"dangling=true\" -q)"
+            }
+        }
     }
 
 }
