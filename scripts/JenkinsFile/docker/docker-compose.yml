@@ -62,6 +62,7 @@ services:
   ms-nginx:
     container_name: ms-nginx
     image: nginx
+    privileged: true
     build:
       context: ./nginx
     ports:
