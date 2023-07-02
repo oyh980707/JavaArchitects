@@ -67,7 +67,7 @@ services:
     ports:
       - "80:80"
     volumes:
-      - /usr/local/nginx/html/dist:/home/ms/projects/ms-ui
+      - /usr/local/nginx/html:/home/ms/projects/ms-ui
       - ./nginx/conf/nginx.conf:/etc/nginx/nginx.conf
       - ./nginx/logs:/var/log/nginx
       - ./nginx/conf.d:/etc/nginx/conf.d
