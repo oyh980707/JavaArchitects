@@ -14,8 +14,8 @@ services:
       - "8848:8848"
       - "9848:9848"
       - "9849:9849"
-    depends_on:
-      - ms-mysql
+    # depends_on:
+    #   - ms-mysql
   ms-mysql:
     container_name: ms-mysql
     image: mysql:5.7
