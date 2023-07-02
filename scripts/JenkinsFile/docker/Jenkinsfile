@@ -70,7 +70,7 @@ pipeline {
         }
         stage("清理容器") {
             steps {
-                sh "docker rmi $(docker images -f \"dangling=true\" -q)"
+                sh "docker rmi \$(docker images -f \"dangling=true\" -q)"
             }
         }
     }
