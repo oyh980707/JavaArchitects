@@ -16,6 +16,8 @@ services:
       - "9849:9849"
     # depends_on:
     #   - ms-mysql
+
+
   ms-mysql:
     container_name: ms-mysql
     image: mysql:5.7
@@ -42,6 +44,8 @@ services:
     environment:
       MYSQL_DATABASE: 'ms-sys'
       MYSQL_ROOT_PASSWORD: 123456
+
+
   ms-redis:
     container_name: ms-redis
     image: redis
@@ -53,6 +57,8 @@ services:
       - ./redis/conf/redis.conf:/home/ruoyi/redis/redis.conf
       - ./redis/data:/data
     command: redis-server /home/ms/redis/redis.conf
+
+
   ms-nginx:
     container_name: ms-nginx
     image: nginx
