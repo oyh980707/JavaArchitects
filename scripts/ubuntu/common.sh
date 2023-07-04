@@ -15,6 +15,8 @@ apt install net-tools
 # ssh
 sudo apt-get install -y openssh-server
 
-
+# git
+sudo apt-get install -y git
+# ssh-keygen -t rsa -C "hugr"
 
 
