@@ -10,7 +10,7 @@ sudo apt install -y -q dos2unix*
 sudo apt install -y -q vim
 
 #net
-apt install net-tools
+apt install -y net-tools
 
 # ssh
 sudo apt-get install -y openssh-server
@@ -19,4 +19,5 @@ sudo apt-get install -y openssh-server
 sudo apt-get install -y git
 # ssh-keygen -t rsa -C "hugr"
 
+sudo apt install -y apt-file
 
